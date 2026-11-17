@@ -1,0 +1,59 @@
+stages:
+  - verify
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: "$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS"
+      when: never
+    - if: "$CI_COMMIT_BRANCH"
+
+backend-verify:
+  stage: verify
+  image: maven:3.9.16-eclipse-temurin-21
+  services:
+    - name: docker:29.6.2-dind
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  cache:
+    key: maven-java21
+    paths:
+      - .m2/repository/
+  script:
+    - ./mvnw --batch-mode --no-transfer-progress -Dmaven.repo.local="$CI_PROJECT_DIR/.m2/repository" verify
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - contribution-service/*/target/surefire-reports/TEST-*.xml
+        - contribution-service/*/target/failsafe-reports/TEST-*.xml
+    paths:
+      - contribution-service/domain/target/site/jacoco/
+      - contribution-service/application/target/site/jacoco/
+
+web-verify:
+  stage: verify
+  image: node:24.19.0-bookworm-slim
+  cache:
+    key:
+      files:
+        - web/package-lock.json
+    paths:
+      - .npm/
+  script:
+    - npm --prefix web ci --cache "$CI_PROJECT_DIR/.npm" --prefer-offline
+    - npm --prefix web run format:check
+    - npm --prefix web run test:ci
+    - npm --prefix web run build
+  artifacts:
+    paths:
+      - web/dist/
+
+compose-validate:
+  stage: verify
+  image: docker:29.6.2-cli
+  script:
+    - docker compose --env-file .env.example config --quiet

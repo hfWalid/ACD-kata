@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="001-create-document-aggregate" author="walid">
+        <createTable tableName="documents">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="template_ref" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="title" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="business_version" type="bigint"><constraints nullable="false"/></column>
+            <column name="lock_version" type="bigint" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="timestamp(6) with time zone"><constraints nullable="false"/></column>
+            <column name="updated_at" type="timestamp(6) with time zone"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="document_sections">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="document_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="section_position" type="integer"><constraints nullable="false"/></column>
+            <column name="title" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="content" type="text"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="document_audit">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="document_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="business_version" type="bigint"><constraints nullable="false"/></column>
+            <column name="action" type="varchar(32)"><constraints nullable="false"/></column>
+            <column name="author" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="occurred_at" type="timestamp(6) with time zone"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_sections" baseColumnNames="document_id"
+                                 referencedTableName="documents" referencedColumnNames="id"
+                                 constraintName="fk_document_sections_document" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="document_audit" baseColumnNames="document_id"
+                                 referencedTableName="documents" referencedColumnNames="id"
+                                 constraintName="fk_document_audit_document" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="document_sections" columnNames="document_id,section_position"
+                             constraintName="uk_document_sections_position"/>
+        <addUniqueConstraint tableName="document_audit" columnNames="document_id,business_version"
+                             constraintName="uk_document_audit_version"/>
+        <createIndex tableName="documents" indexName="idx_documents_status_updated_id">
+            <column name="status"/><column name="updated_at" descending="true"/><column name="id"/>
+        </createIndex>
+        <createIndex tableName="documents" indexName="idx_documents_updated_id">
+            <column name="updated_at" descending="true"/><column name="id"/>
+        </createIndex>
+        <sql>
+            ALTER TABLE documents ADD CONSTRAINT ck_documents_version CHECK (business_version &gt;= 1);
+            ALTER TABLE documents ADD CONSTRAINT ck_documents_time CHECK (updated_at &gt;= created_at);
+            ALTER TABLE documents ADD CONSTRAINT ck_documents_status CHECK (status IN ('Draft','Submitted','InReview','Approved','Rejected','Published','Archived'));
+            ALTER TABLE document_sections ADD CONSTRAINT ck_document_sections_position CHECK (section_position &gt;= 0);
+            ALTER TABLE document_sections ADD CONSTRAINT ck_document_sections_content CHECK (length(content) &lt;= 100000);
+            ALTER TABLE document_audit ADD CONSTRAINT ck_document_audit_version CHECK (business_version &gt;= 1);
+            ALTER TABLE document_audit ADD CONSTRAINT ck_document_audit_action CHECK (action IN ('CREATED','CONTENT_UPDATED','SUBMITTED','REVIEW_STARTED','APPROVED','REJECTED','PUBLISHED','ARCHIVED'));
+        </sql>
+        <rollback>
+            <dropTable tableName="document_audit"/>
+            <dropTable tableName="document_sections"/>
+            <dropTable tableName="documents"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

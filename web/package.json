@@ -1,0 +1,38 @@
+{
+  "name": "acd-web",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --host 127.0.0.1",
+    "build": "ng build",
+    "test": "ng test",
+    "test:ci": "ng test --watch=false",
+    "format:check": "prettier --check src angular.json package.json tsconfig*.json",
+    "format": "prettier --write src angular.json package.json tsconfig*.json"
+  },
+  "private": true,
+  "packageManager": "npm@11.17.0",
+  "dependencies": {
+    "@angular/common": "21.2.26",
+    "@angular/compiler": "21.2.26",
+    "@angular/core": "21.2.26",
+    "@angular/forms": "21.2.26",
+    "@angular/platform-browser": "21.2.26",
+    "@angular/router": "21.2.26",
+    "rxjs": "7.8.2",
+    "tslib": "2.9.1"
+  },
+  "devDependencies": {
+    "@angular/build": "21.2.26",
+    "@angular/cli": "21.2.26",
+    "@angular/compiler-cli": "21.2.26",
+    "jsdom": "28.1.0",
+    "prettier": "3.10.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || ^24.0.0",
+    "npm": ">=10 <12"
+  }
+}
