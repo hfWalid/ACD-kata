@@ -44,6 +44,7 @@ web-verify:
     paths:
       - .npm/
   script:
+    - node --test scripts/init-local-env.test.mjs
     - npm --prefix web ci --cache "$CI_PROJECT_DIR/.npm" --prefer-offline
     - npm --prefix web run format:check
     - npm --prefix web run test:ci

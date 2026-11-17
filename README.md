@@ -41,27 +41,24 @@ La couverture est disponible dans `contribution-service/domain/target/site/jacoc
 
 ## Démarrer le backend local
 
-Créer `.env.local`, puis y remplacer le mot de passe d'exemple par une valeur locale choisie :
+Première utilisation ou redémarrage :
 
 ```sh
-cp .env.example .env.local
-```
-
-Le fichier est ignoré par Git. Utiliser un mot de passe réservé au kata. Pour garder le même format lisible par Compose et Spring, utiliser ici une valeur alphanumérique sans quotes, espaces ni interpolation `$`.
-
-```sh
-make infra-check
+cd /Users/hefhafwalid/Developer/KATAs/EDF/acd-kata
+make local-env
 make infra-up
 make backend-run
 ```
 
-Spring charge `.env.local` depuis la racine du kata. PostgreSQL écoute sur `127.0.0.1:55432`, base `acd_contribution`, utilisateur `acd`. Liquibase applique le schéma initial au démarrage ; Hibernate le valide.
+`make local-env` crée `.env.local` avec un mot de passe aléatoire et des permissions `0600` **uniquement si le fichier est absent**. S'il existe, son contenu est conservé à l'identique. Le fichier est ignoré par Git ; ne pas le remplacer par `.env.example` lors d'un redémarrage et ne pas partager son contenu.
 
-L'API écoute par défaut sur **http://127.0.0.1:8081**. `SERVER_PORT` permet de choisir un autre port. Le jar peut aussi être lancé après `./mvnw package` :
+`make infra-up` attend une connexion PostgreSQL authentifiée avant de réussir. `make backend-run` dépend également de ce contrôle et utilise le même fichier d'environnement que Compose. Un `ENV_FILE` personnalisé est transmis explicitement à Spring.
 
-```sh
-java -jar contribution-service/boot/target/contribution-boot-0.1.0-SNAPSHOT.jar
-```
+PostgreSQL écoute sur `127.0.0.1:55432`, base `acd_contribution`, utilisateur `acd`. Liquibase applique le schéma initial au démarrage ; Hibernate le valide.
+
+**Si l'authentification échoue :** conserver `.env.local` et le volume, puis faire vérifier la concordance des identifiants avec le rôle PostgreSQL existant. Modifier `POSTGRES_PASSWORD` dans un fichier n'effectue pas une rotation du mot de passe : l'image l'utilise pour initialiser une base vide et laisse une base existante intacte. [Documentation de l'image PostgreSQL](https://hub.docker.com/_/postgres).
+
+L'API écoute par défaut sur **http://127.0.0.1:8081**. `SERVER_PORT` permet de choisir un autre port. Préférer `make backend-run` pour conserver le contrôle de connexion et le même fichier de configuration entre Compose et Spring.
 
 Arrêter le backend avec Ctrl-C. `make infra-down` arrête PostgreSQL en conservant le volume. Les tests de rollback utilisent uniquement une base jetable : ne pas les transposer au volume utilisateur.
 

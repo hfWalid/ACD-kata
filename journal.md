@@ -65,6 +65,14 @@ La syntaxe YAML de la CI et la configuration Compose ont aussi été validées l
 
 Prochaine étape : S5, intégration HTTP du shell Angular avec chargement, erreurs et états vides.
 
+## Démarrage local — correction en cours, 17 novembre 2026
+
+Le README proposait une copie inconditionnelle de `.env.example` sur `.env.local`. Cette opération remplaçait la configuration alors que le volume PostgreSQL conservait son rôle et son mot de passe ; le serveur pouvait donc être disponible tout en refusant la connexion du backend.
+
+La procédure distingue désormais création et conservation de la configuration : `make local-env` ne crée qu'un fichier absent, puis `make infra-up` vérifie une connexion réellement authentifiée. Le lancement Spring et Compose utilisent le même fichier. Une connexion locale en mode `trust` et `pg_isready` ne suffisent pas à vérifier le mot de passe.
+
+**Vérification finale du correctif et du redémarrage : réussie.** Voir le relevé final ci-dessous ; le volume et ses données ont été conservés.
+
 ## Modèle d'entrée
 
 ```text
@@ -80,3 +88,12 @@ Prochaine petite étape :
 ```
 
 Pour S0, remplacer la rubrique « test rouge » par l'observation du socle avant / après. Ne pas inventer un cycle TDD rétroactif.
+
+## Vérification finale du redémarrage local — 17 novembre 2026
+
+- Le mot de passe du rôle local et `.env.local` ont été réalignés avec une nouvelle valeur aléatoire, sans affichage du secret. Les comptes de lignes des documents, sections et audit ont été comparés avant/après et conservés. Aucun volume ni document utilisateur n'a été supprimé.
+- `make local-env-test` : trois tests réussis, création privée et conservation exacte des fichiers existants vérifiées.
+- Projet Compose jetable : bon mot de passe → sain ; changement du mot de passe de configuration avec le même volume → échec de readiness ; restauration de la configuration initiale → sain, ligne témoin conservée. Seules les ressources de cette vérification ont été nettoyées.
+- Le parcours du README a été exécuté : `make local-env` conserve la configuration réparée ; `make backend-run` valide PostgreSQL, construit le jar et démarre le serveur sur 8081.
+- API locale : santé et Swagger UI accessibles, puis création → soumission → revue → approbation → publication → archivage vérifiés sur un document de contrôle, versions 1 à 6 et audit durable.
+- La syntaxe YAML de la CI et de Compose a été vérifiée ; aucune nouvelle exécution distante GitLab n'est revendiquée. Le code métier n'a pas changé pendant cette correction.

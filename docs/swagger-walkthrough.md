@@ -4,13 +4,16 @@ Ce parcours exerce le domaine, les cas d'usage, PostgreSQL et l'API via HTTP. Le
 
 ## Démarrer et ouvrir Swagger
 
-JDK 21 et Docker doivent être disponibles. Si `.env.local` existe déjà, le conserver ; sinon suivre la configuration locale du [README](../README.md). Ne pas partager ce fichier ni son mot de passe.
+JDK 21 et Docker doivent être disponibles. Les commandes sont identiques lors de la première utilisation et d'un redémarrage :
 
 ```sh
 cd /Users/hefhafwalid/Developer/KATAs/EDF/acd-kata
+make local-env
 make infra-up
 make backend-run
 ```
+
+`make local-env` crée une configuration aléatoire uniquement si elle est absente ; un fichier existant reste inchangé. Ne pas recopier `.env.example` sur `.env.local`. `make infra-up` vérifie l'authentification avant le lancement du backend. En cas d'échec, conserver le fichier et le volume et suivre le [diagnostic du README](../README.md#démarrer-le-backend-local) ; changer la variable seule ne change pas le mot de passe d'une base déjà initialisée. Ne pas partager le contenu de `.env.local`.
 
 Après le démarrage réussi du backend, ouvrir [Swagger UI](http://127.0.0.1:8081/swagger-ui/index.html). Laisser le terminal du backend ouvert pendant les essais.
 
