@@ -1,0 +1,39 @@
+<div [formGroup]="group()" class="rounded-md border border-slate-200 p-4">
+  <div class="flex items-center justify-between gap-3">
+    <label [for]="'section-title-' + index()" class="text-sm font-medium text-slate-700"
+      >Titre de la section {{ index() + 1 }}</label
+    >
+    <button
+      type="button"
+      (click)="remove.emit()"
+      class="text-sm font-medium text-rose-700 underline"
+    >
+      Supprimer
+    </button>
+  </div>
+  <input
+    [id]="'section-title-' + index()"
+    formControlName="title"
+    autocomplete="off"
+    class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+    [attr.aria-invalid]="showError(group().controls['title'])"
+    [attr.aria-describedby]="
+      showError(group().controls['title']) ? 'section-title-error-' + index() : null
+    "
+  />
+  @if (showError(group().controls['title'])) {
+    <p [id]="'section-title-error-' + index()" class="mt-1 text-sm text-rose-700">
+      200 caractères maximum, valeur non vide requise.
+    </p>
+  }
+
+  <label [for]="'section-content-' + index()" class="mt-3 block text-sm font-medium text-slate-700"
+    >Contenu</label
+  >
+  <textarea
+    [id]="'section-content-' + index()"
+    formControlName="content"
+    rows="4"
+    class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+  ></textarea>
+</div>

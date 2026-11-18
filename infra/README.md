@@ -10,4 +10,6 @@ Le contrôle de santé effectue une requête authentifiée sur l'adresse réseau
 
 `POSTGRES_PASSWORD` initialise le rôle lors de la création d'une base vide ; modifier le fichier ne change pas le mot de passe d'un rôle existant. En cas de décalage, le démarrage s'arrête : conserver le volume et le fichier, puis demander un réalignement explicite des identifiants avec assistance technique. Ne pas recréer la configuration pour tenter de réparer l'authentification. [Fonctionnement de l'image PostgreSQL](https://hub.docker.com/_/postgres).
 
+Pour l'exercice de grille S6, `make seed-documents` écrit 10 000 documents de démonstration directement dans ce volume via `scripts/seed-documents.sql` : agrégats cohérents (version = nombre d'entrées d'audit, 1 000 `InReview`), commande rejouable sans doublon. Elle ne s'exécute que sur la base Compose locale et n'est pas utilisée par les tests.
+
 Kafka sera défini en S8, SonarQube en S10 et le packaging conteneur applicatif en S11. Terraform et le cloud restent optionnels en S12. La CI backend préparée utilise un service Docker-in-Docker pour Testcontainers et requiert un runner compatible ; aucun réglage de runner ni ressource cloud n'est créé ici.

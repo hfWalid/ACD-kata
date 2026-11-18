@@ -1,7 +1,24 @@
-<main>
-  <p class="phase">Phase S0</p>
-  <h1>Kata ACD</h1>
-  <p>Le socle du projet est prêt.</p>
-  <p>Prochaine étape : construire le domaine documentaire en Java pur.</p>
+<header class="border-b border-slate-200 bg-white">
+  <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-6 px-6 py-4">
+    <span class="text-lg font-semibold text-slate-900">Kata ACD</span>
+    <nav aria-label="Navigation principale" class="flex gap-4">
+      <a
+        routerLink="/documents"
+        routerLinkActive="text-slate-900 underline"
+        class="text-sm font-medium text-slate-600 hover:text-slate-900"
+        >Documents</a
+      >
+      <a
+        routerLink="/documents/new"
+        routerLinkActive="text-slate-900 underline"
+        class="text-sm font-medium text-slate-600 hover:text-slate-900"
+        >Nouveau document</a
+      >
+    </nav>
+    <span class="ml-auto text-xs text-slate-500">Phase S5–S7 · exercice pédagogique</span>
+  </div>
+</header>
+
+<main class="mx-auto max-w-5xl px-6 py-8">
+  <router-outlet />
 </main>
-<router-outlet />

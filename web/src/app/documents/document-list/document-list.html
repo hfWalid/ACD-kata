@@ -1,0 +1,61 @@
+<section class="space-y-4">
+  <header class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-semibold text-slate-900">Documents</h1>
+    <a
+      routerLink="/documents/new"
+      class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+      >Nouveau document</a
+    >
+  </header>
+
+  <div class="flex flex-wrap items-end gap-4">
+    <div>
+      <label for="document-search" class="block text-sm font-medium text-slate-700"
+        >Rechercher dans le titre</label
+      >
+      <input
+        id="document-search"
+        type="search"
+        [value]="search()"
+        (change)="onSearch($any($event.target).value)"
+        class="mt-1 w-64 rounded-md border border-slate-300 px-3 py-2 text-sm"
+        placeholder="contrat"
+      />
+    </div>
+    <div>
+      <label for="document-status" class="block text-sm font-medium text-slate-700">Statut</label>
+      <select
+        id="document-status"
+        [value]="statusFilter()"
+        (change)="onStatusChange($any($event.target).value)"
+        class="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
+      >
+        <option value="">Tous</option>
+        @for (status of statuses; track status) {
+          <option [value]="status">{{ statusLabels[status] }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <p role="status" aria-live="polite" class="text-sm text-slate-600">
+    @if (loading()) {
+      Chargement des documents…
+    } @else {
+      {{ summary() }}
+    }
+  </p>
+
+  @if (failure(); as problem) {
+    <p role="alert" class="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-800">
+      {{ problem.detail }} (code {{ problem.code }})
+    </p>
+  }
+
+  <ag-grid-angular
+    class="block h-[32rem] w-full"
+    [gridOptions]="gridOptions"
+    (gridReady)="onGridReady($event)"
+    (rowClicked)="open($event)"
+  />
+</section>

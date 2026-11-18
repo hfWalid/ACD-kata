@@ -1,12 +1,13 @@
 .DEFAULT_GOAL := help
 ENV_FILE ?= .env.local
 
-.PHONY: help verify local-env local-env-test backend-verify backend-unit-test backend-run web-install web-verify infra-check infra-up infra-down infra-status
+.PHONY: help verify local-env local-env-test backend-verify backend-unit-test backend-run web-install web-verify infra-check infra-up infra-down infra-status seed-documents
 
 help:
 	@echo "S1-S4: backend-unit-test, backend-verify (Docker required), backend-run"
 	@echo "Workspace: web-install, verify, web-verify"
 	@echo "Local PostgreSQL: infra-check, infra-up, infra-status, infra-down"
+	@echo "S6 exercise: seed-documents adds 10 000 demo documents to the Compose volume"
 	@echo "Local configuration: local-env creates it once; existing configuration is preserved."
 
 verify: local-env-test backend-verify web-verify
@@ -50,3 +51,9 @@ infra-down:
 
 infra-status:
 	docker compose --env-file "$(ENV_FILE)" ps
+
+# Local S6 exercise only: writes demo rows directly to the Compose volume.
+seed-documents: infra-up
+	docker compose --env-file "$(ENV_FILE)" exec -T postgres psql \
+		--username acd --dbname acd_contribution --set ON_ERROR_STOP=1 \
+		< scripts/seed-documents.sql

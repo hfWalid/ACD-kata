@@ -1,0 +1,78 @@
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate class="space-y-6">
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div>
+      @if (mode() === 'create') {
+        <label for="templateRef" class="block text-sm font-medium text-slate-700"
+          >Référence de modèle</label
+        >
+        <input
+          id="templateRef"
+          formControlName="templateRef"
+          autocomplete="off"
+          class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          [attr.aria-invalid]="showError(form.controls.templateRef)"
+          [attr.aria-describedby]="
+            showError(form.controls.templateRef) ? 'templateRef-error' : null
+          "
+        />
+        @if (showError(form.controls.templateRef)) {
+          <p id="templateRef-error" class="mt-1 text-sm text-rose-700">
+            100 caractères maximum, valeur non vide requise.
+          </p>
+        }
+      } @else {
+        <p class="block text-sm font-medium text-slate-700">Référence de modèle</p>
+        <p id="templateRef" class="mt-1 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700">
+          {{ initial().templateRef }}
+        </p>
+      }
+    </div>
+
+    <div>
+      <label for="title" class="block text-sm font-medium text-slate-700">Titre</label>
+      <input
+        id="title"
+        formControlName="title"
+        autocomplete="off"
+        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+        [attr.aria-invalid]="showError(form.controls.title)"
+        [attr.aria-describedby]="showError(form.controls.title) ? 'title-error' : null"
+      />
+      @if (showError(form.controls.title)) {
+        <p id="title-error" class="mt-1 text-sm text-rose-700">
+          200 caractères maximum, valeur non vide requise.
+        </p>
+      }
+    </div>
+  </div>
+
+  <fieldset class="space-y-4">
+    <legend class="text-sm font-medium text-slate-700">Sections</legend>
+
+    @for (group of rows(); track group; let index = $index) {
+      <app-section-editor [group]="group" [index]="index" (remove)="removeSection(index)" />
+    } @empty {
+      <p class="text-sm text-slate-600">
+        Aucune section. Un document peut rester vide, mais sa soumission exige au moins une section
+        avec du contenu.
+      </p>
+    }
+
+    <button
+      type="button"
+      (click)="addSection()"
+      [disabled]="sections.length >= maxSections"
+      class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 disabled:opacity-50"
+    >
+      Ajouter une section
+    </button>
+  </fieldset>
+
+  <button
+    type="submit"
+    [disabled]="busy()"
+    class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+  >
+    {{ busy() ? 'Enregistrement…' : submitLabel() }}
+  </button>
+</form>

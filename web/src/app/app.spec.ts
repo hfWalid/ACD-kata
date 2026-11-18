@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { App } from './app';
 
 describe('App', () => {
-  it('shows the scaffold phase and the next learning step', async () => {
+  it('offers the document navigation and renders the active route', async () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [provideRouter([])],
@@ -12,9 +12,12 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const page = fixture.nativeElement as HTMLElement;
+    const links = Array.from(page.querySelectorAll('nav a')).map((link) =>
+      link.getAttribute('href'),
+    );
 
-    expect(page.querySelector('h1')?.textContent).toBe('Kata ACD');
-    expect(page.querySelector('main')?.textContent).toContain('Phase S0');
-    expect(page.querySelector('main')?.textContent).toContain('Prochaine étape');
+    expect(links).toEqual(['/documents', '/documents/new']);
+    expect(page.querySelector('nav')?.getAttribute('aria-label')).toBe('Navigation principale');
+    expect(page.querySelector('router-outlet')).not.toBeNull();
   });
 });

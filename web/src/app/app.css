@@ -1,15 +1,3 @@
-main {
-  max-width: 42rem;
-  margin: 5rem auto;
-  padding: 0 1.5rem;
-}
-
-.phase {
-  color: #334155;
-  font-weight: 600;
-}
-
-h1 {
-  color: #0f172a;
-  font-size: 2.5rem;
+:host {
+  display: block;
 }

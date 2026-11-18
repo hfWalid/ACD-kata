@@ -1,0 +1,109 @@
+<section class="space-y-6">
+  <a routerLink="/documents" class="text-sm font-medium text-slate-700 underline">← Documents</a>
+
+  @if (loading()) {
+    <p role="status" class="text-sm text-slate-600">Chargement du document…</p>
+  }
+
+  @if (failure(); as problem) {
+    <p role="alert" class="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-800">
+      {{ problem.detail }} (code {{ problem.code }})
+    </p>
+  }
+
+  @if (notice(); as message) {
+    <p
+      role="status"
+      aria-live="polite"
+      class="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+    >
+      {{ message }}
+    </p>
+  }
+
+  @if (document(); as doc) {
+    <header class="space-y-2">
+      <div class="flex flex-wrap items-center gap-3">
+        <h1 class="text-2xl font-semibold text-slate-900">{{ doc.title }}</h1>
+        <span class="rounded-full px-3 py-1 text-sm font-medium" [class]="tones[doc.status]">{{
+          labels[doc.status]
+        }}</span>
+      </div>
+      <p class="text-sm text-slate-600">
+        Version {{ doc.version }} · modèle {{ doc.templateRef }} · mis à jour le
+        {{ formatDate(doc.updatedAt) }}
+      </p>
+    </header>
+
+    @if (actions().length > 0) {
+      <div
+        class="flex flex-wrap gap-2"
+        role="group"
+        aria-label="Actions disponibles pour ce statut"
+      >
+        @for (action of actions(); track action.action) {
+          <button
+            type="button"
+            (click)="runAction(action.action, action.label)"
+            [disabled]="busy()"
+            class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-50"
+          >
+            {{ action.label }}
+          </button>
+        }
+      </div>
+    } @else {
+      <p class="text-sm text-slate-600">Aucune action disponible : le document est archivé.</p>
+    }
+
+    @if (editable()) {
+      <app-document-form
+        class="block"
+        [initial]="initial()"
+        [busy]="busy()"
+        (saved)="saveContent($event)"
+      />
+    } @else {
+      <section class="space-y-4">
+        <p class="rounded-md bg-slate-100 px-4 py-3 text-sm text-slate-700">
+          Le contenu n'est modifiable qu'à l'état Brouillon ou Rejeté.
+        </p>
+        @for (section of doc.sections; track $index) {
+          <article class="rounded-md border border-slate-200 p-4">
+            <h2 class="text-base font-medium text-slate-900">{{ section.title }}</h2>
+            <p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ section.content }}</p>
+          </article>
+        } @empty {
+          <p class="text-sm text-slate-600">Ce document ne contient aucune section.</p>
+        }
+      </section>
+    }
+
+    <section class="space-y-2">
+      <h2 class="text-lg font-semibold text-slate-900">Audit</h2>
+      <table class="w-full text-left text-sm">
+        <caption class="sr-only">
+          Historique des actions réussies sur ce document
+        </caption>
+        <thead class="text-slate-600">
+          <tr>
+            <th scope="col" class="py-1">Version</th>
+            <th scope="col" class="py-1">Action</th>
+            <th scope="col" class="py-1">Auteur</th>
+            <th scope="col" class="py-1">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of doc.auditTrail; track entry.version) {
+            <tr class="border-t border-slate-200">
+              <td class="py-1">{{ entry.version }}</td>
+              <td class="py-1">{{ entry.action }}</td>
+              <td class="py-1">{{ entry.author }}</td>
+              <td class="py-1">{{ formatDate(entry.occurredAt) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+</section>

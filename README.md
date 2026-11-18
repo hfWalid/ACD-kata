@@ -2,9 +2,9 @@
 
 Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine détaillé et l'architecture sont des choix pédagogiques ; ils ne décrivent pas l'architecture interne d'EDF.
 
-**Tranche courante : S1–S4 — domaine, application, PostgreSQL et REST.** Les résultats de vérification sont consignés dans le journal. Le shell Angular reste au stade S0 ; S5 et les incréments suivants ne sont pas commencés.
+**Tranche courante : S1–S7 — domaine, application, PostgreSQL, REST et interface Angular.** Les résultats de vérification sont consignés dans le journal. S8 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **101 tests backend réussis, aucun ignoré**, contrat OpenAPI comparé et couverture des branches et lignes du domaine et de l'application à 100 %, exigée par le build.
+Validation locale : **101 tests backend et 30 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, et parcours navigateur exécuté sur la liste, la création et les transitions.
 
 ## Ce qui est construit
 
@@ -14,8 +14,11 @@ Validation locale : **101 tests backend réussis, aucun ignoré**, contrat OpenA
 - Adapter JPA séparé, PostgreSQL 16.14, Liquibase 5.0.4, transactions et contrôle optimiste des écritures concurrentes.
 - API REST, validation, `ProblemDetail`, pagination par fenêtre, contrat OpenAPI exporté et endpoints Actuator/Micrometer.
 - Tests unitaires, MVC et d'intégration avec PostgreSQL Testcontainers.
+- Interface Angular 21 standalone, zoneless et stricte : client HTTP typé, routes paresseuses, états de chargement, d'erreur et de vide.
+- Grille AG Grid Community 36 en *infinite row model* : une requête par bloc de 25 lignes sur le contrat `[startRow, endRow[`, tri et filtres serveur.
+- Formulaire réactif (Tailwind 3) : création, correction, actions légales selon le statut, erreurs du domaine affichées telles quelles.
 
-Le domaine n'a aucune dépendance de production externe au JDK. L'application dépend du domaine ; les adapters adaptent les frontières et `boot` assure le câblage. Kafka, outbox, service de revue distribué, AG Grid et formulaires Angular appartiennent aux phases suivantes.
+Le domaine n'a aucune dépendance de production externe au JDK. L'application dépend du domaine ; les adapters adaptent les frontières et `boot` assure le câblage. Kafka, outbox et service de revue distribué appartiennent aux phases suivantes.
 
 ## Vérifier
 
@@ -86,6 +89,28 @@ GET /api/documents?startRow=0&endRow=100&sort=updatedAt:desc&filter.status=InRev
 
 La réponse contient `rowCount` et `rows`. La fenêtre est exclusive à droite, de 1 à 500 lignes ; un offset arbitraire est accepté. Les tris autorisés sont `title`, `updatedAt`, `status` et `version`. Le total exact et les lignes partagent les mêmes filtres ; la recherche textuelle est littérale et insensible à la casse.
 
+## Essayer l'interface web
+
+Le backend doit tourner (`make backend-run`) et PostgreSQL être disponible. Dans un second terminal :
+
+```sh
+nvm use
+make web-install
+npm --prefix web start
+```
+
+Ouvrir **http://127.0.0.1:4200/documents**. Le serveur de développement relaie `/api` vers `127.0.0.1:8081` (voir `web/proxy.conf.json`), donc aucune configuration CORS n'est nécessaire.
+
+La page liste les documents, trie et filtre côté serveur, puis ouvre le détail où le contenu se corrige et où seules les actions du statut courant sont proposées. `X-User` est fixé à `web-kata`, auteur pédagogique comme dans le parcours Swagger.
+
+Pour l'exercice de grille, charger 10 000 documents de démonstration dans le volume local :
+
+```sh
+make seed-documents
+```
+
+La commande écrit directement en SQL des agrégats cohérents (version = nombre d'entrées d'audit) et peut être rejouée sans doublon. Elle ne touche que la base Compose locale.
+
 ## Contrat et métriques
 
 - `/swagger-ui/index.html` : interface Swagger pour exécuter les requêtes.
@@ -104,6 +129,6 @@ La vérification normale compare le contrat ; elle ne réécrit pas l'export.
 
 ## Progression et CI
 
-Lire la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), les [ADR](docs/adr/0002-document-lifecycle-and-boundaries.md) et le [journal](journal.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
+Lire la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), celle de la [grille](docs/phases/S6-grid.md), les [ADR](docs/adr/0002-document-lifecycle-and-boundaries.md) et le [journal](journal.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
 
 La CI GitLab est **préparée, sans exécution distante observée**. Elle suppose `acd-kata` à la racine du dépôt GitLab et un runner Docker configuré pour le service Docker-in-Docker privilégié. Le dépôt parent KATAs, ses fichiers et ses réglages ne sont pas modifiés. Aucun push, déploiement ou provisionnement cloud n'est effectué.

@@ -1,0 +1,21 @@
+<section class="space-y-6">
+  <h1 class="text-2xl font-semibold text-slate-900">Nouveau document</h1>
+  <p class="text-sm text-slate-600">
+    Le document est créé en brouillon, version 1. Il pourra être soumis après avoir ajouté au moins
+    une section avec du contenu.
+  </p>
+
+  @if (failure(); as problem) {
+    <p role="alert" class="rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-800">
+      {{ problem.detail }} (code {{ problem.code }})
+    </p>
+  }
+
+  <app-document-form
+    class="block"
+    mode="create"
+    submitLabel="Créer le brouillon"
+    [busy]="busy()"
+    (saved)="create($event)"
+  />
+</section>

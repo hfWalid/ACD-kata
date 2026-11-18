@@ -109,3 +109,34 @@ Revue complète du code, des tests et des documents, puis vérification par ré-
 - **Dépôt distant.** `master` local et `origin/master` portent S1–S4. `origin/main` est un historique distinct, sans ancêtre commun, qui contient un scaffold et un `.gitlab-ci.yml` généré par GitLab (`include:` SAST et Secret Detection). Avant toute merge request : choisir la branche cible et conserver ces `include:` si le projet distant les utilise, car le pipeline local `verify` les remplace. Aucun push, merge ou réécriture d'historique n'a été effectué.
 
 Vérification : `./mvnw --batch-mode --no-transfer-progress verify` → **101 tests réussis, 0 échec, 0 ignoré** (domaine 18, application 13, MVC 44, PostgreSQL 13, architecture 7, HTTP 6), contrat comparé sans régénération, contrôles de couverture réussis. `npm --prefix web run format:check`, `test:ci` et `build` réussis. La CI GitLab reste **préparée** ; aucune exécution distante n'est revendiquée.
+
+## S5–S7 — interface Angular, grille et formulaire, 18 novembre 2026
+
+Tranche S5–S7 explicitement demandée, réalisée dans l'ordre intégration → grille → formulaire. Le domaine et l'API n'ont pas changé ; aucun test backend n'a été touché.
+
+### Décisions
+
+- **AG Grid Community 36.3.0 en *infinite row model*** plutôt qu'Enterprise/SSRM. Le SSRM suppose une licence ou un *trial* ; le contrat local (fenêtre `[startRow, endRow[`, `rowCount`, tri, filtres) est celui de l'infinite row model et la démonstration attendue — une requête par bloc, aucun chargement global — est obtenue sans clé. Limite consignée dans les notes de lecture et la fiche S6.
+- **`HttpClient` et signals explicites** pour le chargement : la liste doit devenir un `IDatasource` en S6 et les tests s'appuient sur `HttpTestingController`. `resource()` n'apportait rien une fois la grille en place.
+- **Proxy de développement** (`web/proxy.conf.json`) au lieu de CORS : le navigateur ne voit qu'une origine.
+- **Le front n'invente aucune règle métier** : la table des actions ne masque que les boutons illégaux ; un document vide reste soumettable et le `409 EMPTY_DOCUMENT` du serveur est affiché avec son code. Un test épingle la table des actions sur `docs/domain-model.md`.
+- **`X-User` fixé à `web-kata`**, auteur pédagogique, comme dans le parcours Swagger ; ce n'est pas une authentification.
+
+### Incréments et observations
+
+| Phase | Premier échec observé | Résultat |
+|---|---|---|
+| S5 | Types et services absents ; tests écrits avant le client | Client HTTP typé, routes paresseuses, états chargement / erreur / vide ; 8 tests client et navigation |
+| S6 | Grille absente ; le datasource est testé avant le composant | Une requête par bloc de 25, tri et filtres serveur ; 6 tests de traduction et de datasource |
+| S7 | Formulaires absents ; tests de validation avant le gabarit | Formulaire réactif, actions par statut, audit ; 16 tests de formulaire et de détail |
+
+Deux défauts d'outillage rencontrés et corrigés, sans contournement du comportement :
+
+- `@for` sur un `FormArray` muté en place produisait `NG0100` à l'ajout d'une ligne (reproduit avec un composant minimal hors du projet). Les lignes passent par une liste en signal et un `SectionEditor` lié par `[formGroup]`.
+- Le gestionnaire `sortChanged` doublait la requête de bloc : l'infinite row model recharge déjà les blocs au tri. Seuls les filtres de la barre d'outils purgent le cache.
+
+### Vérification exécutée
+
+- `npm --prefix web run test:ci` : **30 tests réussis** (7 fichiers). `format:check` et `build` réussis ; bundle initial 268 kB, AG Grid dans un bloc paresseux de 1,23 MB.
+- Parcours navigateur avec PostgreSQL et le backend local : liste sur 10 003 documents (`startRow=0&endRow=25&sort=updatedAt:desc`), tri par en-tête (`sort=version:asc`, une requête), filtre `filter.status=InReview` (1 000 lignes), ouverture d'un document, création via le formulaire, soumission (version 2, action suivante), puis refus `EMPTY_DOCUMENT` affiché pour un brouillon sans section. Aucune erreur console en dehors du 409 attendu.
+- Le volume local contient désormais les 10 000 documents de démonstration créés par `make seed-documents` et trois documents créés pendant le parcours. Aucune donnée préexistante n'a été supprimée ; les tests automatisés utilisent toujours des bases Testcontainers jetables.
