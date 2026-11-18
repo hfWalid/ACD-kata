@@ -201,3 +201,26 @@ Erreurs corrigées en route, toutes détectées par les tests :
 - Navigateur, backend et PostgreSQL locaux : document créé puis corrigé, `versions/1` renvoie le titre et la section d'origine quand le document courant affiche les valeurs corrigées, `versions/2` renvoie les deux sections, la ligne de la version courante est marquée « actuelle », le panneau se referme, `versions/9` répond `404 DOCUMENT_VERSION_NOT_FOUND` et `versions/0` répond `400` avec `field: "version"`.
 - Migration appliquée sur la base locale : `Rows affected: 10013`, les 10 006 documents existants ont reçu l'instantané de leur version courante ; `GET /versions/1` d'un document de démonstration répond `200`.
 - Validation : `POST` avec titre blanc et titre de section vide → `400 INVALID_REQUEST` avec `errors` sur `sections[0].title` et `title`.
+
+## Refactoring hexagonal et structure atomique de l'interface
+
+**18 novembre 2026 — refactoring terminé, sans changement de comportement ni de contrat.**
+
+### Backend
+
+- `DocumentDetail` (`application.query`) devient le seul modèle de lecture applicative : `DocumentQueries.get` et les huit commandes de `DocumentCommands` le renvoient, construit par `DocumentDetail.from(Document)` avec validation et copie défensive. L'agrégat ne franchit plus la frontière applicative.
+- Le paquet REST est découpé par ressource : `adapters.rest.document` (contrôleur et DTO) et `adapters.rest.problem` (traduction des erreurs).
+- Quatre règles ArchUnit ajoutées, chacune avec une fixture en contre-exemple : `adaptersDependOnPortsOnly`, `portsDoNotDependOnImplementations`, `adaptersStayOutsideTheCompositionRoot`, `restAdapterDoesNotExposeTheAggregate`.
+
+### Interface
+
+- Déplacement des 23 fichiers vers `core/{models,api}`, `shared/ui/molecules`, `features/documents/{data,ui/atoms,ui/molecules,ui/organisms,pages}`. Les pages portent le suffixe `-page` et sont les seules à injecter `DocumentApi`.
+- `ApiFailure` sort du client HTTP vers `core/api/api-failure.ts` : la traduction des erreurs n'est pas une responsabilité du client.
+- Deux composants extraits pour supprimer les duplications : `StatusBadge` (atome : libellés et couleurs d'un statut) et `DocumentVersionPanel` (organisme : valeurs conservées, avec `output()` de fermeture).
+- `scripts/web-structure.test.mjs` vérifie la cascade atomique, l'indépendance de `core` et `shared`, la traversée des features réservée à la coquille, et la résolution de chaque import relatif. Il a immédiatement détecté un import à contresens réel : `section-editor` (molécule) importait `form-error` depuis `organisms/`. Le fichier est remonté dans `ui/`, où les deux couches peuvent le lire.
+
+### Vérification exécutée
+
+- `make verify` : **exit 0**. 116 tests backend (18 domaine, 14 application, 50 MVC, 17 persistance, 11 ArchUnit, 6 HTTP), 40 tests web (9 fichiers), 8 tests de structure Node, Prettier conforme, build initial 268 kB avec la grille dans un chunk lazy de 1,23 Mo, contrat OpenAPI inchangé.
+- Navigateur avec backend et PostgreSQL locaux : liste de 10 007 documents avec pagination 25 lignes et résumé serveur ; détail d'un document en version 2 dont le panneau de la version 1 affiche encore le titre et l'objet d'origine puis se ferme ; création d'un document depuis le formulaire, redirection vers sa page et statut `Brouillon` porté par le nouvel atome.
+- Les tests web n'ont pas été modifiés pour accompagner le refactoring, sauf ajout de deux fichiers de spécification (`api-failure.spec.ts`, `status-badge.spec.ts`) : les 38 tests existants passent sur les nouveaux chemins, ce qui établit la non-régression du comportement.

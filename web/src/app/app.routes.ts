@@ -6,19 +6,25 @@ export const routes: Routes = [
     path: 'documents',
     title: 'Documents',
     loadComponent: () =>
-      import('./documents/document-list/document-list').then((module) => module.DocumentList),
+      import('./features/documents/pages/document-list-page').then(
+        (module) => module.DocumentListPage,
+      ),
   },
   {
     path: 'documents/new',
     title: 'Nouveau document',
     loadComponent: () =>
-      import('./documents/document-create/document-create').then((module) => module.DocumentCreate),
+      import('./features/documents/pages/document-create-page').then(
+        (module) => module.DocumentCreatePage,
+      ),
   },
   {
     path: 'documents/:id',
     title: 'Document',
     loadComponent: () =>
-      import('./documents/document-detail/document-detail').then((module) => module.DocumentDetail),
+      import('./features/documents/pages/document-detail-page').then(
+        (module) => module.DocumentDetailPage,
+      ),
   },
   { path: '**', redirectTo: 'documents' },
 ];

@@ -4,10 +4,10 @@ import fr.walid.acd.contribution.application.exception.DocumentNotFoundException
 import fr.walid.acd.contribution.application.exception.DocumentVersionNotFoundException;
 import fr.walid.acd.contribution.application.port.in.DocumentQueries;
 import fr.walid.acd.contribution.application.port.out.DocumentRepository;
+import fr.walid.acd.contribution.application.query.DocumentDetail;
 import fr.walid.acd.contribution.application.query.DocumentPage;
 import fr.walid.acd.contribution.application.query.DocumentSearch;
 import fr.walid.acd.contribution.application.query.DocumentVersion;
-import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 
 import java.util.Objects;
@@ -20,8 +20,10 @@ public final class DocumentQueryService implements DocumentQueries {
     }
 
     @Override
-    public Document get(DocumentId id) {
-        return repository.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+    public DocumentDetail get(DocumentId id) {
+        return repository.findById(id)
+                .map(DocumentDetail::from)
+                .orElseThrow(() -> new DocumentNotFoundException(id));
     }
 
     @Override

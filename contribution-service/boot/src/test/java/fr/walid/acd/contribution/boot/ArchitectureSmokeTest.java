@@ -6,14 +6,19 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import fr.walid.acd.architecturefixtures.adapters.messaging.BadMessaging;
+import fr.walid.acd.architecturefixtures.adapters.persistence.BadBootDependency;
 import fr.walid.acd.architecturefixtures.adapters.persistence.BadPersistence;
 import fr.walid.acd.architecturefixtures.adapters.rest.BadRest;
+import fr.walid.acd.architecturefixtures.adapters.rest.BadRestAggregate;
+import fr.walid.acd.architecturefixtures.adapters.rest.BadUseCaseDependency;
 import fr.walid.acd.architecturefixtures.application.BadApplication;
+import fr.walid.acd.architecturefixtures.application.port.in.BadPortDependency;
 import fr.walid.acd.architecturefixtures.domain.BadDomainDependency;
 import fr.walid.acd.architecturefixtures.domain.BadDomainFramework;
 import fr.walid.acd.architecturefixtures.entrypoint.BadEntrypoint;
 import fr.walid.acd.architecturefixtures.foreign.BadPortImplementation;
 import org.junit.jupiter.api.Test;
+import fr.walid.acd.contribution.domain.Document;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
@@ -38,6 +43,10 @@ class ArchitectureSmokeTest {
         independentRestAdapter(ROOT + ".adapters").check(production);
         independentPersistenceAdapter(ROOT + ".adapters").check(production);
         independentMessagingAdapter(ROOT + ".adapters").check(production);
+        adaptersDependOnPortsOnly(ROOT + ".adapters").check(production);
+        adaptersStayOutsideTheCompositionRoot(ROOT + ".adapters").check(production);
+        restAdapterDoesNotExposeTheAggregate(ROOT + ".adapters").check(production);
+        portsDoNotDependOnImplementations(APPLICATION).check(production);
         portImplementations().check(production);
         bootEntrypoints(ROOT + ".boot").check(production);
     }
@@ -62,6 +71,26 @@ class ArchitectureSmokeTest {
         rejects(independentRestAdapter(FIXTURES + ".adapters"), BadRest.class);
         rejects(independentPersistenceAdapter(FIXTURES + ".adapters"), BadPersistence.class);
         rejects(independentMessagingAdapter(FIXTURES + ".adapters"), BadMessaging.class);
+    }
+
+    @Test
+    void rejectsAnAdapterThatReachesAConcreteUseCase() {
+        rejects(adaptersDependOnPortsOnly(FIXTURES + ".adapters"), BadUseCaseDependency.class);
+    }
+
+    @Test
+    void rejectsAnAdapterDependingOnTheCompositionRoot() {
+        rejects(adaptersStayOutsideTheCompositionRoot(FIXTURES + ".adapters"), BadBootDependency.class);
+    }
+
+    @Test
+    void rejectsTheAggregateLeakingOutOfTheTransportAdapter() {
+        rejects(restAdapterDoesNotExposeTheAggregate(FIXTURES + ".adapters"), BadRestAggregate.class);
+    }
+
+    @Test
+    void rejectsAPortDependingOnAnImplementation() {
+        rejects(portsDoNotDependOnImplementations(FIXTURES + ".application"), BadPortDependency.class);
     }
 
     @Test
@@ -105,6 +134,28 @@ class ArchitectureSmokeTest {
         return noClasses().that().resideInAPackage(adaptersPackage + ".messaging..")
                 .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".rest..", adaptersPackage + ".persistence..")
                 .allowEmptyShould(true);
+    }
+
+    /** Adapters talk to the application through inbound ports, never through the services behind them. */
+    private static ArchRule adaptersDependOnPortsOnly(String adaptersPackage) {
+        return noClasses().that().resideInAPackage(adaptersPackage + "..")
+                .should().dependOnClassesThat().resideInAPackage(APPLICATION + ".service..");
+    }
+
+    private static ArchRule adaptersStayOutsideTheCompositionRoot(String adaptersPackage) {
+        return noClasses().that().resideInAPackage(adaptersPackage + "..")
+                .should().dependOnClassesThat().resideInAPackage(ROOT + ".boot..");
+    }
+
+    /** A transport contract carries its own records; the aggregate stays behind the use case. */
+    private static ArchRule restAdapterDoesNotExposeTheAggregate(String adaptersPackage) {
+        return noClasses().that().resideInAPackage(adaptersPackage + ".rest..")
+                .should().dependOnClassesThat().areAssignableTo(Document.class);
+    }
+
+    private static ArchRule portsDoNotDependOnImplementations(String applicationPackage) {
+        return noClasses().that().resideInAPackage(applicationPackage + ".port..")
+                .should().dependOnClassesThat().resideInAPackage(applicationPackage + ".service..");
     }
 
     private static ArchRule portImplementations() {

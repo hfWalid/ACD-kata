@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 ENV_FILE ?= .env.local
 
-.PHONY: help verify local-env local-env-test backend-verify backend-unit-test backend-run web-install web-verify infra-check infra-up infra-down infra-status seed-documents
+.PHONY: help verify local-env local-env-test web-structure-test backend-verify backend-unit-test backend-run web-install web-verify infra-check infra-up infra-down infra-status seed-documents
 
 help:
 	@echo "S1-S4: backend-unit-test, backend-verify (Docker required), backend-run"
@@ -10,13 +10,16 @@ help:
 	@echo "S6 exercise: seed-documents adds 10 000 demo documents to the Compose volume"
 	@echo "Local configuration: local-env creates it once; existing configuration is preserved."
 
-verify: local-env-test backend-verify web-verify
+verify: local-env-test web-structure-test backend-verify web-verify
 
 local-env:
 	node scripts/init-local-env.mjs "$(ENV_FILE)"
 
 local-env-test:
 	node --test scripts/init-local-env.test.mjs
+
+web-structure-test:
+	node --test scripts/web-structure.test.mjs
 
 backend-verify:
 	./mvnw --batch-mode --no-transfer-progress verify

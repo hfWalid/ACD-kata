@@ -13,8 +13,8 @@ La fiche d'origine propose AG Grid **Enterprise** avec le *Server-Side Row Model
 
 ## Ce qui est construit
 
-- `document-grid-query.ts` : `toSort` et `toQuery` traduisent le modèle de tri AG Grid vers les quatre champs acceptés (`title`, `updatedAt`, `status`, `version`). Une colonne non acceptée retombe sur `updatedAt:desc` au lieu de produire un `400`.
-- `document-datasource.ts` : `IDatasource.getRows` appelle `GET /api/documents` avec la fenêtre, le tri et les filtres courants ; succès → `successCallback(rows, rowCount)`, échec → `failCallback()` et message.
+- `features/documents/data/document-grid-query.ts` : `toSort` et `toQuery` traduisent le modèle de tri AG Grid vers les quatre champs acceptés (`title`, `updatedAt`, `status`, `version`). Une colonne non acceptée retombe sur `updatedAt:desc` au lieu de produire un `400`.
+- `features/documents/data/document-datasource.ts` : `IDatasource.getRows` appelle `GET /api/documents` avec la fenêtre, le tri et les filtres courants ; succès → `successCallback(rows, rowCount)`, échec → `failCallback()` et message.
 - `DocumentList` : colonnes (titre, statut en badge, version, date), tri par en-tête, filtre de statut et recherche `q` dans une barre d'outils, états vide et erreur, clic sur une ligne vers le détail.
 - Badge de statut rendu par `valueFormatter` + `cellClass` (classes Tailwind littérales) plutôt qu'un `cellRenderer` : moins de DOM non testable, même résultat visuel.
 - `scripts/seed-documents.sql` et `make seed-documents` : 10 000 documents cohérents (version = nombre d'entrées d'audit), dont 1 000 `InReview`, écrits directement dans le volume Compose.

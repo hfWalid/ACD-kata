@@ -24,6 +24,6 @@ npm --prefix web run format:check
 npm --prefix web run build
 ```
 
-Tests : `document-api.spec.ts` (fenêtre, filtres, en-têtes, conflit, réseau), `document-status.spec.ts` (table des actions), `app.spec.ts` (navigation), `document-detail.spec.ts` et `document-form.spec.ts` (rendu, validation, erreurs, transitions).
+Tests : `core/api/document-api.spec.ts` (fenêtre, filtres, en-têtes), `core/api/api-failure.spec.ts` (code stable, champs refusés, réseau), `features/documents/data/document-status.spec.ts` (table des actions), `app.spec.ts` (navigation), `pages/document-detail-page.spec.ts` et `ui/organisms/document-form/document-form.spec.ts` (rendu, validation, erreurs, transitions). Les chemins suivent la structure atomique décrite dans [l'ADR 0003](../../adr/0003-application-read-model-and-atomic-ui.md).
 
 Parcours exécuté dans le navigateur avec PostgreSQL et le bac à sable local : liste chargée depuis l'API, création, soumission, refus `EMPTY_DOCUMENT` affiché, audit visible.

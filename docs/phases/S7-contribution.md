@@ -30,4 +30,4 @@
 npm --prefix web run test:ci
 ```
 
-`document-form.spec.ts` : création avec une section vide, référence en lecture seule, titre blanc refusé avec `aria-invalid`, limites dépassées (titre 201, contenu 100 001) refusées avec le message du champ, charge utile normalisée, ajout et suppression de sections. `document-detail.spec.ts` : actions par statut, enregistrement avec `expectedVersion`, transition, règle métier affichée, champs refusés par le serveur listés, valeurs d'une version affichées puis refermées, version sans instantané signalée, rechargement sur conflit, 404.
+`ui/organisms/document-form/document-form.spec.ts` : création avec une section vide, référence en lecture seule, titre blanc refusé avec `aria-invalid`, limites dépassées (titre 201, contenu 100 001) refusées avec le message du champ, charge utile normalisée, ajout et suppression de sections. `pages/document-detail-page.spec.ts` : actions par statut, enregistrement avec `expectedVersion`, transition, règle métier affichée, champs refusés par le serveur listés, valeurs d'une version affichées puis refermées, version sans instantané signalée, rechargement sur conflit, 404.

@@ -35,7 +35,18 @@ class DocumentQueryServiceTest {
         assertThatThrownBy(() -> service.get(id)).isInstanceOf(DocumentNotFoundException.class);
         var document = Document.create(id, new TemplateRef("report"), "Report", List.of(), new Actor("walid"), Instant.EPOCH);
         repository.add(document);
-        assertThat(service.get(id)).isSameAs(document);
+
+        var detail = service.get(id);
+
+        assertThat(detail.id()).isEqualTo(document.id());
+        assertThat(detail.title()).isEqualTo(document.title());
+        assertThat(detail.templateRef()).isEqualTo(document.templateRef());
+        assertThat(detail.status()).isEqualTo(document.status());
+        assertThat(detail.version()).isEqualTo(document.version());
+        assertThat(detail.sections()).isEqualTo(document.sections());
+        assertThat(detail.auditTrail()).isEqualTo(document.auditTrail());
+        assertThat(detail.createdAt()).isEqualTo(document.createdAt());
+        assertThat(detail.updatedAt()).isEqualTo(document.updatedAt());
     }
 
     @Test

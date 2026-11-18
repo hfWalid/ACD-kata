@@ -5,8 +5,8 @@ import fr.walid.acd.contribution.application.port.in.ChangeDocumentStatusCommand
 import fr.walid.acd.contribution.application.port.in.UpdateDocumentCommand;
 import fr.walid.acd.contribution.application.exception.DocumentConflictException;
 import fr.walid.acd.contribution.application.exception.DocumentNotFoundException;
+import fr.walid.acd.contribution.application.query.DocumentDetail;
 import fr.walid.acd.contribution.domain.Actor;
-import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 import fr.walid.acd.contribution.domain.DocumentStatus;
 import fr.walid.acd.contribution.domain.DomainException;
@@ -39,7 +39,7 @@ class DocumentCommandServiceTest {
         assertThat(document.id().value()).isEqualTo(id);
         assertThat(document.status()).isEqualTo(new DocumentStatus.Draft());
         assertThat(document.createdAt()).isEqualTo(now);
-        assertThat(repository.findById(document.id())).contains(document);
+        assertThat(repository.findById(document.id()).map(DocumentDetail::from)).contains(document);
     }
 
     @Test
@@ -63,7 +63,7 @@ class DocumentCommandServiceTest {
         assertThat(document.version()).isEqualTo(11);
         assertThat(document.auditTrail()).hasSize(11);
         assertThat(repository.saves).isEqualTo(10);
-        assertThat(repository.findById(document.id())).contains(document);
+        assertThat(repository.findById(document.id()).map(DocumentDetail::from)).contains(document);
     }
 
     @Test
@@ -75,7 +75,7 @@ class DocumentCommandServiceTest {
 
         assertThatThrownBy(() -> service.startReview(change(original)))
                 .isInstanceOfSatisfying(DocumentConflictException.class, error -> assertThat(error.id()).isEqualTo(original.id()));
-        assertThat(repository.findById(original.id())).contains(current);
+        assertThat(repository.findById(original.id()).map(DocumentDetail::from)).contains(current);
         assertThat(repository.saves).isEqualTo(1);
     }
 
@@ -87,7 +87,7 @@ class DocumentCommandServiceTest {
         repository.rejectNextSave = true;
 
         assertThatThrownBy(() -> service.submit(change(original))).isInstanceOf(DocumentConflictException.class);
-        assertThat(repository.findById(original.id())).contains(original);
+        assertThat(repository.findById(original.id()).map(DocumentDetail::from)).contains(original);
         assertThat(original.version()).isEqualTo(1);
         assertThat(original.auditTrail()).hasSize(1);
         assertThat(repository.saves).isZero();
@@ -100,7 +100,7 @@ class DocumentCommandServiceTest {
         var document = create(service);
 
         assertThatThrownBy(() -> service.publish(change(document))).isInstanceOf(DomainException.class);
-        assertThat(repository.findById(document.id())).contains(document);
+        assertThat(repository.findById(document.id()).map(DocumentDetail::from)).contains(document);
         assertThat(repository.saves).isZero();
     }
 
@@ -118,11 +118,11 @@ class DocumentCommandServiceTest {
         return new DocumentCommandService(repository, Clock.fixed(NOW, ZoneOffset.UTC), () -> ID);
     }
 
-    private static Document create(DocumentCommandService service) {
+    private static DocumentDetail create(DocumentCommandService service) {
         return service.create(new CreateDocumentCommand(new TemplateRef("report"), "Report", List.of(new Section("Summary", "Content")), AUTHOR));
     }
 
-    private static ChangeDocumentStatusCommand change(Document document) {
+    private static ChangeDocumentStatusCommand change(DocumentDetail document) {
         return new ChangeDocumentStatusCommand(document.id(), document.version(), AUTHOR);
     }
 }

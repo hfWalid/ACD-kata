@@ -7,6 +7,7 @@ import fr.walid.acd.contribution.application.port.in.CreateDocumentCommand;
 import fr.walid.acd.contribution.application.port.in.DocumentCommands;
 import fr.walid.acd.contribution.application.port.in.UpdateDocumentCommand;
 import fr.walid.acd.contribution.application.port.out.DocumentRepository;
+import fr.walid.acd.contribution.application.query.DocumentDetail;
 import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 
@@ -28,56 +29,56 @@ public final class DocumentCommandService implements DocumentCommands {
     }
 
     @Override
-    public Document create(CreateDocumentCommand command) {
+    public DocumentDetail create(CreateDocumentCommand command) {
         var document = Document.create(new DocumentId(idGenerator.get()), command.templateRef(), command.title(),
                 command.sections(), command.author(), clock.instant());
         repository.add(document);
-        return document;
+        return DocumentDetail.from(document);
     }
 
     @Override
-    public Document update(UpdateDocumentCommand command) {
-        return change(command.id(), command.expectedVersion(), document -> document.updateContent(
+    public DocumentDetail update(UpdateDocumentCommand command) {
+        return changed(command.id(), command.expectedVersion(), document -> document.updateContent(
                 command.title(), command.sections(), command.author(), clock.instant()));
     }
 
     @Override
-    public Document submit(ChangeDocumentStatusCommand command) {
-        return change(command.id(), command.expectedVersion(), document -> document.submit(command.author(), clock.instant()));
+    public DocumentDetail submit(ChangeDocumentStatusCommand command) {
+        return changed(command.id(), command.expectedVersion(), document -> document.submit(command.author(), clock.instant()));
     }
 
     @Override
-    public Document startReview(ChangeDocumentStatusCommand command) {
-        return change(command.id(), command.expectedVersion(), document -> document.startReview(command.author(), clock.instant()));
+    public DocumentDetail startReview(ChangeDocumentStatusCommand command) {
+        return changed(command.id(), command.expectedVersion(), document -> document.startReview(command.author(), clock.instant()));
     }
 
     @Override
-    public Document approve(ChangeDocumentStatusCommand command) {
-        return change(command.id(), command.expectedVersion(), document -> document.approve(command.author(), clock.instant()));
+    public DocumentDetail approve(ChangeDocumentStatusCommand command) {
+        return changed(command.id(), command.expectedVersion(), document -> document.approve(command.author(), clock.instant()));
     }
 
     @Override
-    public Document reject(ChangeDocumentStatusCommand command) {
-        return change(command.id(), command.expectedVersion(), document -> document.reject(command.author(), clock.instant()));
+    public DocumentDetail reject(ChangeDocumentStatusCommand command) {
+        return changed(command.id(), command.expectedVersion(), document -> document.reject(command.author(), clock.instant()));
     }
 
     @Override
-    public Document publish(ChangeDocumentStatusCommand command) {
-        return change(command.id(), command.expectedVersion(), document -> document.publish(command.author(), clock.instant()));
+    public DocumentDetail publish(ChangeDocumentStatusCommand command) {
+        return changed(command.id(), command.expectedVersion(), document -> document.publish(command.author(), clock.instant()));
     }
 
     @Override
-    public Document archive(ChangeDocumentStatusCommand command) {
-        return change(command.id(), command.expectedVersion(), document -> document.archive(command.author(), clock.instant()));
+    public DocumentDetail archive(ChangeDocumentStatusCommand command) {
+        return changed(command.id(), command.expectedVersion(), document -> document.archive(command.author(), clock.instant()));
     }
 
-    private Document change(DocumentId id, long expectedVersion, UnaryOperator<Document> action) {
+    private DocumentDetail changed(DocumentId id, long expectedVersion, UnaryOperator<Document> action) {
         var document = repository.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
         if (document.version() != expectedVersion) {
             throw new DocumentConflictException(id);
         }
-        var changed = action.apply(document);
-        repository.save(changed, expectedVersion);
-        return changed;
+        var updated = action.apply(document);
+        repository.save(updated, expectedVersion);
+        return DocumentDetail.from(updated);
     }
 }

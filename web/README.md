@@ -16,14 +16,23 @@ Le backend doit tourner (`make backend-run` à la racine). `proxy.conf.json` rel
 
 | Chemin | Rôle |
 |---|---|
-| `src/app/core/document-api.ts` | Client HTTP typé, en-tête `X-User` sur les mutations, `ApiFailure` à partir du `ProblemDetail` |
-| `src/app/core/api-failure-alert.ts` | Bandeau d'erreur commun : message du serveur et champs refusés |
-| `src/app/documents/document-grid-query.ts` | Traduction du modèle de tri AG Grid vers `sort=champ:direction` |
-| `src/app/documents/document-datasource.ts` | `IDatasource` de l'*infinite row model* : une requête par bloc |
-| `src/app/documents/document-list/` | Grille paginée, barre d'outils (statut, recherche réactive, réinitialisation), états vide et erreur |
-| `src/app/documents/document-detail/` | Document, versions et valeurs conservées, actions du statut, formulaire si modifiable |
-| `src/app/documents/document-form/` | Formulaire réactif et éditeur de section |
-| `src/app/documents/document-status.ts` | Libellés, couleurs et table des actions autorisées |
+| `src/app/core/models/document.model.ts` | Types du contrat REST : document, page, versions, actions |
+| `src/app/core/api/document-api.ts` | Client HTTP typé et en-tête `X-User` sur les mutations |
+| `src/app/core/api/api-failure.ts` | `ApiFailure` et lecture du `ProblemDetail` (code stable, champs refusés) |
+| `src/app/shared/ui/molecules/api-failure-alert.ts` | Bandeau d'erreur commun, réutilisable hors documents |
+| `src/app/features/documents/data/` | Sans Angular : traduction du tri, `IDatasource` de l'infinite row model, libellés et actions de statut |
+| `src/app/features/documents/ui/atoms/status-badge.ts` | Pastille de statut : une seule définition des libellés et des couleurs |
+| `src/app/features/documents/ui/molecules/section-editor.ts` | Édition d'une section, avec ses messages de limite |
+| `src/app/features/documents/ui/organisms/document-form/` | Formulaire réactif assemblant les sections |
+| `src/app/features/documents/ui/organisms/document-version-panel.ts` | Valeurs conservées d'une version, en lecture seule |
+| `src/app/features/documents/pages/` | Pages routées : liste, création, détail ; elles seules parlent au client HTTP |
+| `src/app/features/documents/ui/form-error.ts` | Messages d'erreur partagés par les composants de formulaire |
+
+## Structure atomique
+
+`core` ne dépend de rien d'autre que lui-même, `shared` ne dépend pas des features, et à l'intérieur d'une feature la cascade est stricte : `data` ← `atoms` ← `molecules` ← `organisms` ← `pages`. Seules la coquille (`app.ts`) et le routeur (`app.routes.ts`) traversent les features. Ces règles sont vérifiées par `scripts/web-structure.test.mjs`, exécuté par `make web-structure-test` et par `make verify` : un import à contresens fait échouer la vérification, comme les règles ArchUnit côté backend.
+
+Les pages portent le suffixe `-page` et sont les seules à injecter `DocumentApi` : un organisme reçoit ses valeurs par `input()` et remonte ses intentions par `output()`.
 
 ## Choix de la grille
 
@@ -35,4 +44,4 @@ La pagination est celle d'AG Grid, alimentée par le `rowCount` du serveur (25, 
 
 ## Tests
 
-Vitest avec `TestBed` et `HttpTestingController` : 38 tests. Le rendu AG Grid n'est pas testé en jsdom (mise en page réelle) ; le datasource, la traduction de requête, les états du composant et les composants de formulaire le sont.
+Vitest avec `TestBed` et `HttpTestingController` : 40 tests dans 9 fichiers. Le rendu AG Grid n'est pas testé en jsdom (mise en page réelle) ; le datasource, la traduction de requête, les états du composant et les composants de formulaire le sont.

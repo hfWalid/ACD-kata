@@ -4,7 +4,7 @@ Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine dé
 
 **Tranche courante : S1–S7 — domaine, application, PostgreSQL, REST et interface Angular.** Les résultats de vérification sont consignés dans le journal. S8 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **112 tests backend et 38 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, et parcours navigateur exécuté sur la liste, la création, les transitions et la lecture des versions.
+Validation locale : **116 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, et parcours navigateur exécuté sur la liste, la création, les transitions et la lecture des versions.
 
 ## Ce qui est construit
 
@@ -129,6 +129,6 @@ La vérification normale compare le contrat ; elle ne réécrit pas l'export.
 
 ## Progression et CI
 
-Lire la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), celle de la [grille](docs/phases/S6-grid.md), les [ADR](docs/adr/0002-document-lifecycle-and-boundaries.md) et le [journal](journal.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
+Lire la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), celle de la [grille](docs/phases/S6-grid.md), les [ADR](docs/adr/0003-application-read-model-and-atomic-ui.md) et le [journal](journal.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
 
 La CI GitLab est **préparée, sans exécution distante observée**. Elle suppose `acd-kata` à la racine du dépôt GitLab et un runner Docker configuré pour le service Docker-in-Docker privilégié. Le dépôt parent KATAs, ses fichiers et ses réglages ne sont pas modifiés. Aucun push, déploiement ou provisionnement cloud n'est effectué.
