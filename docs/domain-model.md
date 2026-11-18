@@ -7,6 +7,7 @@
 - **Auteur** : identifiant textuel de la personne effectuant une action dans l'exercice.
 - **Version métier** : commence à 1 ; augmente exactement une fois par action réussie.
 - **Audit** : suite ordonnée des actions réussies, avec auteur, instant et version résultante. Ce n'est pas encore une messagerie événementielle.
+- **Version conservée** : valeurs atteintes par le document après une action réussie (titre, statut, sections). L'audit dit qui a fait quoi et quand ; la version conservée dit ce que le document contenait alors.
 - **Contribution** : contexte responsable du contenu, de l'état et de leur cohérence. Le contexte de revue séparé reste une extension S8.
 
 ## Transitions
@@ -35,7 +36,9 @@ Le domaine reçoit ses instants explicitement et refuse un instant antérieur à
 
 Le dépôt charge un agrégat, puis sauvegarde une nouvelle version en exigeant sa version antérieure. La comparaison applicative détecte un conflit déjà visible ; le contrôle optimiste de l'adapter protège aussi la course entre deux écritures simultanées. La version technique JPA ne sort pas de l'adapter.
 
-Document, sections et audit partagent une transaction. Une action concurrente perdante ne doit jamais laisser une entrée d'audit ou des sections supplémentaires.
+Document, sections, audit et version conservée partagent une transaction. Une action concurrente perdante ne doit jamais laisser une entrée d'audit, des sections ou un instantané supplémentaires.
+
+`document_versions` est en ajout seul : une correction écrit la version suivante et ne réécrit jamais les précédentes. Les documents antérieurs à la conservation des instantanés gardent les valeurs de leur version courante (saisies par la migration) ; leurs versions plus anciennes restent sans valeurs et l'API répond `DOCUMENT_VERSION_NOT_FOUND` plutôt que d'inventer un contenu.
 
 ## Limites
 

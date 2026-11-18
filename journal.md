@@ -159,3 +159,45 @@ Incrément demandé après la tranche S5–S7 : pagination dans la grille, filtr
 - Navigateur, backend et PostgreSQL locaux : page suivante → `startRow=50&endRow=75` (bloc suivant) ; dernière page → `startRow=10000&endRow=10025` pour 10 006 lignes et « 10 001 à 10 006 sur 10 006 » ; taille 50 → 201 pages ; `filter.status=InReview` depuis la page 201 → retour page 1 et `startRow=0`.
 - Recherche : frappe de `00042` en cinq touches → **une seule** requête `q=00042`, 248 ms après la dernière touche, aucun appel pour les termes intermédiaires ; « Effacer les filtres » → une requête sans `q` ni `filter.status`.
 - Frappe rapide combinée à un changement de taille de page et à un saut de page : **aucun message console**, ni avertissement AG Grid sur les blocs obsolètes, ni `NG0100`.
+
+## Validation des écritures et versions conservées — 18 novembre 2026
+
+Deux demandes traitées ensemble : des validations symétriques sur la création et la correction, côté interface et côté API, puis la lecture des valeurs de chaque version et non plus seulement des actions.
+
+### Décisions
+
+- **Les limites restent écrites une fois par frontière.** Le domaine porte les invariants, les corps de requête portent les mêmes limites en Bean Validation, l'interface les reproduit en validateurs. Une troisième copie côté client est inévitable (elle ne peut pas importer le domaine) et elle est testée : titre 201 et contenu 100 001 sont refusés avec le message du champ.
+- **Le `400` nomme les champs rejetés.** Le `problem+json` porte désormais `errors: [{field, message}]`, trié par champ puis message. Le corps et les paramètres de méthode sont traités séparément : avec une contrainte sur `@RequestHeader`, Spring MVC signale aussi la validation du corps via la validation de méthode (`HandlerMethodValidationException`), et non `MethodArgumentNotValidException`. Les deux chemins sont couverts, sinon `errors` disparaît silencieusement.
+- **Le front affiche les refus du serveur** au lieu de les résumer : `ApiFailure` transporte `errors`, un composant `ApiFailureAlert` les liste, et les anciens bandeaux dupliqués ont été remplacés.
+- **Instantanés de version en table dédiée** (`document_versions`, `document_version_sections`) plutôt qu'une reconstruction depuis l'audit, qui ne contient pas de contenu, ou qu'une colonne JSON, qui aurait ajouté une dépendance de sérialisation dans l'adapter. Les lignes sont en ajout seul.
+- **Écriture des instantanés explicite dans le dépôt**, après les deux `flush()` existants, plutôt qu'une collection sur l'entité racine : charger l'agrégat pour une correction n'a pas à charger tout son historique, et l'ordre des `flush` protégé par les tests d'entrelacement reste intact.
+- **Un instantané par version, pas de réécriture.** Les documents antérieurs à la migration gardent les valeurs de leur version courante ; leurs versions plus anciennes répondent `404 DOCUMENT_VERSION_NOT_FOUND` au lieu d'un contenu inventé.
+- **Endpoint dédié** `GET /api/documents/{id}/versions/{version}` plutôt qu'un historique complet imbriqué dans la réponse du document : une réponse par version consultée, donc une taille bornée même avec 50 sections de 100 000 caractères.
+
+### Incréments et observations
+
+| Incrément | Premier échec observé | Résultat |
+|---|---|---|
+| Champs rejetés dans le `400` | Assertions `$.errors` rouges : le corps restait générique | `errors` trié, corps et en-têtes couverts, 3 tests MVC |
+| Refus serveur affichés | Aucun affichage des champs | `ApiFailure.fieldErrors`, `ApiFailureAlert`, 2 tests |
+| Limite de contenu dans le formulaire | Contenu trop long sans message | Message lié au champ et `aria-describedby`, 1 test |
+| Instantanés de version | Migration, entités, port et endpoint absents | Table ajoutée, écriture sur création et correction, 3 tests d'adaptateur |
+| Lecture d'une version | — | `DocumentQueries.version`, `404 DOCUMENT_VERSION_NOT_FOUND`, 3 tests MVC, 1 test HTTP |
+| Panneau de version | — | Bouton par ligne, panneau refermable, 2 tests de composant |
+
+Erreurs corrigées en route, toutes détectées par les tests :
+
+- `@Enumerated` sur `DocumentStatus` : le domaine modélise les états en hiérarchie scellée, pas en `enum`. La colonne stocke le nom, comme `documents.status`.
+- `TRUNCATE` et `rollback` de la migration : le test de schéma ne reculait qu'un changeset et laissait les tables du premier. Il recule maintenant les deux et vérifie les cinq tables.
+- Deux tests d'adaptateur ne voyaient aucun instantané : la persistance manquait sur le chemin de création, et le test de conflit utilisait une version périmée qui ne l'était pas. Les deux ont été corrigés côté code et côté test, sans affaiblir l'assertion.
+- La porte de couverture a refusé `DocumentVersionNotFoundException` (accesseurs non utilisés) : le test d'application vérifie maintenant `id()` et `version()`.
+- `BadPortImplementation` (fixture ArchUnit) implémente aussi la nouvelle méthode de port.
+
+### Vérification exécutée
+
+- `./mvnw verify -DupdateOpenApiSnapshot=true` : **BUILD SUCCESS**, contrat régénéré (`GET /documents/{id}/versions/{version}` ajouté), couverture domaine et application à 100 %.
+- Backend : 18 tests de domaine, 14 d'application, 50 MVC, 17 de persistance, 7 ArchUnit, 6 HTTP, soit **112 tests**.
+- `npm --prefix web run test:ci` : **38 tests** (7 fichiers).
+- Navigateur, backend et PostgreSQL locaux : document créé puis corrigé, `versions/1` renvoie le titre et la section d'origine quand le document courant affiche les valeurs corrigées, `versions/2` renvoie les deux sections, la ligne de la version courante est marquée « actuelle », le panneau se referme, `versions/9` répond `404 DOCUMENT_VERSION_NOT_FOUND` et `versions/0` répond `400` avec `field: "version"`.
+- Migration appliquée sur la base locale : `Rows affected: 10013`, les 10 006 documents existants ont reçu l'instantané de leur version courante ; `GET /versions/1` d'un document de démonstration répond `200`.
+- Validation : `POST` avec titre blanc et titre de section vide → `400 INVALID_REQUEST` avec `errors` sur `sections[0].title` et `title`.

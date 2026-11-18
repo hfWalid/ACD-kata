@@ -4,7 +4,7 @@ Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine dé
 
 **Tranche courante : S1–S7 — domaine, application, PostgreSQL, REST et interface Angular.** Les résultats de vérification sont consignés dans le journal. S8 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **101 tests backend et 33 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, et parcours navigateur exécuté sur la liste, la création et les transitions.
+Validation locale : **112 tests backend et 38 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, et parcours navigateur exécuté sur la liste, la création, les transitions et la lecture des versions.
 
 ## Ce qui est construit
 
@@ -75,7 +75,7 @@ curl --fail-with-body http://127.0.0.1:8081/api/documents
 curl --fail-with-body -X POST http://127.0.0.1:8081/api/documents   -H 'Content-Type: application/json'   -H 'X-User: contributor-1'   -d '{"templateRef":"notice-v1","title":"Notice technique","sections":[{"title":"Objet","content":"Première contribution"}]}'
 ```
 
-La création retourne `201`, `Location` et le document en version 1. Pour une transition, envoyer `POST /api/documents/{id}/submit` avec `X-User` et le JSON `{"expectedVersion":1}`. Les autres actions sont `start-review`, `approve`, `reject`, `publish`, `archive`. Pour corriger le contenu, utiliser `PUT /api/documents/{id}/content` avec `expectedVersion`, `title` et `sections`.
+La création retourne `201`, `Location` et le document en version 1. Pour une transition, envoyer `POST /api/documents/{id}/submit` avec `X-User` et le JSON `{"expectedVersion":1}`. Les autres actions sont `start-review`, `approve`, `reject`, `publish`, `archive`. Pour corriger le contenu, utiliser `PUT /api/documents/{id}/content` avec `expectedVersion`, `title` et `sections`. Chaque version atteinte est conservée : `GET /api/documents/{id}/versions/{version}` renvoie le titre, le statut et les sections tels qu'ils étaient, ou `404 DOCUMENT_VERSION_NOT_FOUND` si cette version n'a pas d'instantané.
 
 Une version périmée ou une transition interdite retourne `409`. Une requête invalide retourne `400`, un document absent `404`. Les réponses d'erreur utilisent `application/problem+json` avec un code stable. La version attendue doit être un entier JSON positif ; les chaînes et nombres décimaux ne sont pas convertis silencieusement.
 

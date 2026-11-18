@@ -162,8 +162,7 @@ describe('DocumentDetail', () => {
   it('shows the values stored for one version and closes them again', async () => {
     const { fixture, element, http } = await setup();
 
-    const buttons = () =>
-      [...element.querySelectorAll('tbody button')] as HTMLButtonElement[];
+    const buttons = () => [...element.querySelectorAll('tbody button')] as HTMLButtonElement[];
     expect(buttons().map((button) => button.textContent?.trim())).toEqual([
       'Voir les valeurs',
       'Voir les valeurs',
@@ -199,12 +198,13 @@ describe('DocumentDetail', () => {
     const { fixture, element, http } = await setup();
 
     (element.querySelector('tbody button') as HTMLButtonElement).click();
-    http
-      .expectOne('/api/documents/doc-1/versions/1')
-      .flush(
-        { code: 'DOCUMENT_VERSION_NOT_FOUND', detail: 'No values are stored for this document version' },
-        { status: 404, statusText: 'Not Found' },
-      );
+    http.expectOne('/api/documents/doc-1/versions/1').flush(
+      {
+        code: 'DOCUMENT_VERSION_NOT_FOUND',
+        detail: 'No values are stored for this document version',
+      },
+      { status: 404, statusText: 'Not Found' },
+    );
     fixture.detectChanges();
 
     const alert = element.querySelector('[role="alert"]');

@@ -1,6 +1,6 @@
 # Progression par phases
 
-La progression dépend des comportements démontrés, pas des dates du programme d'origine. **S0–S7 sont implémentés et validés localement.** Les résultats de vérification figurent dans le journal : 101 tests backend pour S1–S4, 33 tests web et un parcours navigateur pour S5–S7. S8 et les phases suivantes attendent une nouvelle demande.
+La progression dépend des comportements démontrés, pas des dates du programme d'origine. **S0–S7 sont implémentés et validés localement.** Les résultats de vérification figurent dans le journal : 112 tests backend, 38 tests web et un parcours navigateur pour S5–S7. S8 et les phases suivantes attendent une nouvelle demande.
 
 Les références de préparation et leurs limites sont dans [preparation/](preparation/reading-notes.md). Les décisions locales font autorité pour ce kata ; elles ne prétendent pas définir le produit EDF.
 

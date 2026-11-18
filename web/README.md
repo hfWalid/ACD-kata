@@ -17,10 +17,11 @@ Le backend doit tourner (`make backend-run` à la racine). `proxy.conf.json` rel
 | Chemin | Rôle |
 |---|---|
 | `src/app/core/document-api.ts` | Client HTTP typé, en-tête `X-User` sur les mutations, `ApiFailure` à partir du `ProblemDetail` |
+| `src/app/core/api-failure-alert.ts` | Bandeau d'erreur commun : message du serveur et champs refusés |
 | `src/app/documents/document-grid-query.ts` | Traduction du modèle de tri AG Grid vers `sort=champ:direction` |
 | `src/app/documents/document-datasource.ts` | `IDatasource` de l'*infinite row model* : une requête par bloc |
 | `src/app/documents/document-list/` | Grille paginée, barre d'outils (statut, recherche réactive, réinitialisation), états vide et erreur |
-| `src/app/documents/document-detail/` | Document, audit, actions du statut, formulaire si modifiable |
+| `src/app/documents/document-detail/` | Document, versions et valeurs conservées, actions du statut, formulaire si modifiable |
 | `src/app/documents/document-form/` | Formulaire réactif et éditeur de section |
 | `src/app/documents/document-status.ts` | Libellés, couleurs et table des actions autorisées |
 
@@ -34,4 +35,4 @@ La pagination est celle d'AG Grid, alimentée par le `rowCount` du serveur (25, 
 
 ## Tests
 
-Vitest avec `TestBed` et `HttpTestingController` : 30 tests. Le rendu AG Grid n'est pas testé en jsdom (mise en page réelle) ; le datasource, la traduction de requête, les états du composant et les composants de formulaire le sont.
+Vitest avec `TestBed` et `HttpTestingController` : 38 tests. Le rendu AG Grid n'est pas testé en jsdom (mise en page réelle) ; le datasource, la traduction de requête, les états du composant et les composants de formulaire le sont.

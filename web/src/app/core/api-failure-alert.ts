@@ -15,7 +15,9 @@ import { ApiFailure } from './document-api';
         @if (problem.fieldErrors.length > 0) {
           <ul class="mt-2 list-disc space-y-1 pl-5">
             @for (error of problem.fieldErrors; track error.field + ':' + error.message) {
-              <li><span class="font-medium">{{ error.field }}</span> : {{ error.message }}</li>
+              <li>
+                <span class="font-medium">{{ error.field }}</span> : {{ error.message }}
+              </li>
             }
           </ul>
         }
