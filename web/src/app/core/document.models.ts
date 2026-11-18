@@ -54,6 +54,17 @@ export interface DocumentDetail {
   auditTrail: AuditEntry[];
 }
 
+/** Values stored for one version, with the audit entry that produced it. */
+export interface DocumentVersion {
+  version: number;
+  action: string;
+  author: string;
+  occurredAt: string;
+  title: string;
+  status: DocumentStatus;
+  sections: DocumentSection[];
+}
+
 /** Exclusive window over the filtered collection, as expected by the server. */
 export interface DocumentQuery {
   startRow: number;

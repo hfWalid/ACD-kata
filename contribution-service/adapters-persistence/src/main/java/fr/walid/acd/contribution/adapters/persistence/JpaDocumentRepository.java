@@ -7,6 +7,7 @@ import fr.walid.acd.contribution.application.query.DocumentPage;
 import fr.walid.acd.contribution.application.query.DocumentSearch;
 import fr.walid.acd.contribution.application.query.DocumentSort;
 import fr.walid.acd.contribution.application.query.DocumentSummary;
+import fr.walid.acd.contribution.application.query.DocumentVersion;
 import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 import fr.walid.acd.contribution.domain.DocumentStatus;
@@ -51,6 +52,36 @@ public class JpaDocumentRepository implements DocumentRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean exists(DocumentId id) {
+        Objects.requireNonNull(id, "Document id is required");
+        return entityManager.find(DocumentEntity.class, id.value()) != null;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<DocumentVersion> version(DocumentId id, long version) {
+        Objects.requireNonNull(id, "Document id is required");
+        var entry = entityManager.createQuery("""
+                        select entry from DocumentAuditEntity entry
+                        where entry.document.id = :documentId and entry.businessVersion = :version
+                        """, DocumentAuditEntity.class)
+                .setParameter("documentId", id.value())
+                .setParameter("version", version)
+                .getResultStream()
+                .findFirst();
+        return entry.flatMap(audit -> entityManager.createQuery("""
+                        select stored from DocumentVersionEntity stored
+                        where stored.documentId = :documentId and stored.businessVersion = :version
+                        """, DocumentVersionEntity.class)
+                .setParameter("documentId", id.value())
+                .setParameter("version", version)
+                .getResultStream()
+                .findFirst()
+                .map(snapshot -> snapshot.toDomain(audit.toDomain())));
+    }
+
+    @Override
     public void add(Document document) {
         Objects.requireNonNull(document, "Document is required");
         if (document.version() != 1) {
@@ -59,6 +90,7 @@ public class JpaDocumentRepository implements DocumentRepository {
         try {
             entityManager.persist(DocumentEntity.from(document));
             entityManager.flush();
+            entityManager.persist(DocumentVersionEntity.from(document));
         } catch (PersistenceException failure) {
             throwConflictOrRethrow(document.id(), failure);
         }
@@ -87,6 +119,7 @@ public class JpaDocumentRepository implements DocumentRepository {
             // Both flushes are inside one transaction; any failure rolls back
             // the document, its sections and its audit together.
             entityManager.flush();
+            entityManager.persist(DocumentVersionEntity.from(document));
         } catch (PersistenceException failure) {
             throwConflictOrRethrow(document.id(), failure);
         }

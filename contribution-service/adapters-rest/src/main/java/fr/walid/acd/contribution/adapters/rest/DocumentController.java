@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -83,6 +84,15 @@ public class DocumentController {
             content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse get(@PathVariable UUID id) {
         return DocumentResponse.from(queries.get(new DocumentId(id)));
+    }
+
+    @GetMapping("/{id}/versions/{version}")
+    @Operation(summary = "Read the values stored for one document version")
+    @ApiResponse(responseCode = "200", description = "Values of the requested version",
+            content = @Content(schema = @Schema(implementation = DocumentVersionResponse.class)))
+    public DocumentVersionResponse version(@PathVariable UUID id,
+                                           @PathVariable @Positive long version) {
+        return DocumentVersionResponse.from(queries.version(new DocumentId(id), version));
     }
 
     @GetMapping

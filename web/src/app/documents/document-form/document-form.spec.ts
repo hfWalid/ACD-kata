@@ -58,6 +58,29 @@ describe('DocumentForm', () => {
     );
   });
 
+  it('reports the field limits that the API also enforces', async () => {
+    const { fixture, element, saved } = await setup(
+      {
+        templateRef: 'a'.repeat(101),
+        title: 'a'.repeat(201),
+        sections: [{ title: 'Objet', content: 'a'.repeat(100_001) }],
+      },
+      'edit',
+    );
+
+    fixture.componentInstance.submit();
+    fixture.detectChanges();
+
+    expect(saved).toHaveLength(0);
+    const content = element.querySelector('textarea');
+    expect(content?.getAttribute('aria-describedby')).toBe('section-content-error-0');
+    expect(element.querySelector('#section-content-error-0')?.textContent).toContain(
+      '100 000 caractères maximum',
+    );
+    expect(element.querySelector('#title-error')?.textContent).toContain('200 caractères maximum');
+    expect(element.querySelector('#section-title-error-0')).toBeNull();
+  });
+
   it('emits the normalized payload for a valid document', async () => {
     const { fixture, saved } = await setup({
       templateRef: ' notice-v1 ',

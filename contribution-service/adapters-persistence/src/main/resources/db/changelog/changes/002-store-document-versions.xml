@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="002-store-document-versions" author="walid">
+        <comment>
+            Snapshot of the values reached by each version. The audit trail records who did what and
+            when; this table records what the document looked like once that action succeeded, so a
+            reader can compare versions without replaying the history.
+        </comment>
+        <createTable tableName="document_versions">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="document_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="business_version" type="bigint"><constraints nullable="false"/></column>
+            <column name="title" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="document_version_sections">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="version_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="section_position" type="integer"><constraints nullable="false"/></column>
+            <column name="title" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="content" type="text"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_versions" baseColumnNames="document_id"
+                                 referencedTableName="documents" referencedColumnNames="id"
+                                 constraintName="fk_document_versions_document" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="document_version_sections" baseColumnNames="version_id"
+                                 referencedTableName="document_versions" referencedColumnNames="id"
+                                 constraintName="fk_document_version_sections_version" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="document_versions" columnNames="document_id,business_version"
+                             constraintName="uk_document_versions_version"/>
+        <addUniqueConstraint tableName="document_version_sections" columnNames="version_id,section_position"
+                             constraintName="uk_document_version_sections_position"/>
+        <sql>
+            ALTER TABLE document_versions ADD CONSTRAINT ck_document_versions_version CHECK (business_version &gt;= 1);
+            ALTER TABLE document_versions ADD CONSTRAINT ck_document_versions_status CHECK (status IN ('Draft','Submitted','InReview','Approved','Rejected','Published','Archived'));
+            ALTER TABLE document_version_sections ADD CONSTRAINT ck_document_version_sections_position CHECK (section_position &gt;= 0);
+            ALTER TABLE document_version_sections ADD CONSTRAINT ck_document_version_sections_content CHECK (length(content) &lt;= 100000);
+        </sql>
+        <sql>
+            -- Documents written before this changeset keep the state their current version reached;
+            -- earlier versions cannot be reconstructed and stay without stored values.
+            INSERT INTO document_versions (id, document_id, business_version, title, status)
+            SELECT gen_random_uuid(), document.id, document.business_version, document.title, document.status
+            FROM documents document;
+            INSERT INTO document_version_sections (id, version_id, section_position, title, content)
+            SELECT gen_random_uuid(), version.id, section.section_position, section.title, section.content
+            FROM document_sections section
+            JOIN document_versions version
+              ON version.document_id = section.document_id
+             AND version.business_version = (SELECT current_document.business_version
+                                             FROM documents current_document
+                                             WHERE current_document.id = section.document_id);
+        </sql>
+        <rollback>
+            <dropTable tableName="document_version_sections"/>
+            <dropTable tableName="document_versions"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

@@ -7,6 +7,7 @@ import {
   DocumentDetail,
   DocumentPage,
   DocumentQuery,
+  DocumentVersion,
   UpdateContentBody,
 } from './document.models';
 
@@ -24,15 +25,23 @@ export class ApiFailure extends Error {
     readonly status: number,
     readonly code: string,
     readonly detail: string,
+    readonly fieldErrors: readonly FieldError[] = [],
   ) {
     super(detail);
     this.name = 'ApiFailure';
   }
 }
 
+/** One rejected input, as named by the server (`title`, `sections[0].content`, `author`). */
+export interface FieldError {
+  field: string;
+  message: string;
+}
+
 interface ProblemBody {
   code?: string;
   detail?: string;
+  errors?: FieldError[];
 }
 
 export function toApiFailure(error: unknown): ApiFailure {
@@ -48,6 +57,7 @@ export function toApiFailure(error: unknown): ApiFailure {
       error.status,
       body?.code ?? 'UNEXPECTED',
       body?.detail ?? 'La requête a échoué.',
+      Array.isArray(body?.errors) ? body.errors : [],
     );
   }
   return new ApiFailure(0, 'UNEXPECTED', 'Erreur inattendue.');
@@ -73,6 +83,11 @@ export class DocumentApi {
 
   get(id: string): Observable<DocumentDetail> {
     return this.request(this.http.get<DocumentDetail>(`${BASE}/${id}`));
+  }
+
+  /** Values stored for one version; the server answers 404 when it has no snapshot. */
+  version(id: string, version: number): Observable<DocumentVersion> {
+    return this.request(this.http.get<DocumentVersion>(`${BASE}/${id}/versions/${version}`));
   }
 
   create(body: CreateDocumentBody): Observable<DocumentDetail> {

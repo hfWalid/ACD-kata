@@ -19,6 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 class DocumentSchemaMigrationIT {
 
+    private static final String[] TABLES = {"documents", "document_sections", "document_audit",
+            "document_versions", "document_version_sections"};
+
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16.14-alpine");
 
@@ -31,19 +34,20 @@ class DocumentSchemaMigrationIT {
             try (var liquibase = new Liquibase("db/changelog/db.changelog-master.xml",
                     new ClassLoaderResourceAccessor(), database)) {
                 liquibase.update(new Contexts(), new LabelExpression());
-                assertThat(tableExists(connection, "documents")).isTrue();
-                assertThat(tableExists(connection, "document_sections")).isTrue();
-                assertThat(tableExists(connection, "document_audit")).isTrue();
+                for (String table : TABLES) {
+                    assertThat(tableExists(connection, table)).as(table).isTrue();
+                }
 
-                liquibase.rollback(1, new Contexts(), new LabelExpression());
-                assertThat(tableExists(connection, "documents")).isFalse();
-                assertThat(tableExists(connection, "document_sections")).isFalse();
-                assertThat(tableExists(connection, "document_audit")).isFalse();
+                // Two changesets: the aggregate and the stored versions.
+                liquibase.rollback(2, new Contexts(), new LabelExpression());
+                for (String table : TABLES) {
+                    assertThat(tableExists(connection, table)).as(table).isFalse();
+                }
 
                 liquibase.update(new Contexts(), new LabelExpression());
-                assertThat(tableExists(connection, "documents")).isTrue();
-                assertThat(tableExists(connection, "document_sections")).isTrue();
-                assertThat(tableExists(connection, "document_audit")).isTrue();
+                for (String table : TABLES) {
+                    assertThat(tableExists(connection, table)).as(table).isTrue();
+                }
             }
         }
     }

@@ -134,6 +134,66 @@ class JpaDocumentRepositoryIT {
     }
 
     @Test
+    void storesTheValuesReachedByEachVersion() {
+        var draft = draft(1, "Ancien titre", List.of(new Section("Résumé", "Avant")));
+        documents.add(draft);
+
+        var edited = draft.updateContent("Nouveau titre", List.of(new Section("Contexte", "Après")),
+                AUTHOR, CREATED_AT.plusSeconds(1));
+        documents.save(edited, draft.version());
+
+        var first = documents.version(draft.id(), 1).orElseThrow();
+        assertThat(first.title()).isEqualTo("Ancien titre");
+        assertThat(first.sections()).isEqualTo(draft.sections());
+        assertThat(first.status()).isEqualTo(new DocumentStatus.Draft());
+        assertThat(first.entry()).isEqualTo(draft.auditTrail().getFirst());
+
+        var second = documents.version(draft.id(), 2).orElseThrow();
+        assertThat(second.title()).isEqualTo("Nouveau titre");
+        assertThat(second.sections()).isEqualTo(edited.sections());
+        assertThat(second.entry()).isEqualTo(edited.auditTrail().getLast());
+
+        // Reading the history never rewrites the current aggregate.
+        assertThat(documents.findById(draft.id()).orElseThrow().sections()).isEqualTo(edited.sections());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM document_versions", Long.class)).isEqualTo(2);
+    }
+
+    @Test
+    void reportsAVersionThatWasNeverStoredAndAnUnknownDocument() {
+        var draft = draft(1, "Note", List.of());
+        documents.add(draft);
+
+        assertThat(documents.version(draft.id(), 7)).isEmpty();
+        assertThat(documents.exists(draft.id())).isTrue();
+        assertThat(documents.exists(new DocumentId(UUID.randomUUID()))).isFalse();
+    }
+
+    @Test
+    void leavesNoSnapshotBehindWhenAnUpdateIsRejected() {
+        var draft = draft(1, "Note", List.of());
+        documents.add(draft);
+        var accepted = draft.updateContent("Titre accepté", List.of(), AUTHOR, CREATED_AT.plusSeconds(1));
+        documents.save(accepted, 1);
+        var stale = draft.updateContent("Titre refusé", List.of(), AUTHOR, CREATED_AT.plusSeconds(2));
+
+        assertThatThrownBy(() -> documents.save(stale, 1)).isInstanceOf(DocumentConflictException.class);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM document_versions", Long.class)).isEqualTo(2);
+        assertThat(documents.version(draft.id(), 2).orElseThrow().title()).isEqualTo("Titre accepté");
+    }
+
+    @Test
+    void storesAnEmptyVersionWithoutSections() {
+        var draft = draft(1, "Note sans section", List.of());
+        documents.add(draft);
+
+        var stored = documents.version(draft.id(), 1).orElseThrow();
+
+        assertThat(stored.sections()).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM document_version_sections", Long.class)).isZero();
+    }
+
+    @Test
     void removingSectionsPreservesTheirRemainingOrder() {
         var draft = draft(1, "Note", List.of(
                 new Section("Un", "A"), new Section("Deux", "B"), new Section("Trois", "C")));

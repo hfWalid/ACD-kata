@@ -1,11 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { ApiFailureAlert } from '../../core/api-failure-alert';
 import { ApiFailure, DocumentApi } from '../../core/document-api';
 import { DocumentForm, DocumentFormValue } from '../document-form/document-form';
 
 @Component({
   selector: 'app-document-create',
-  imports: [DocumentForm],
+  imports: [ApiFailureAlert, DocumentForm],
   templateUrl: './document-create.html',
 })
 export class DocumentCreate {

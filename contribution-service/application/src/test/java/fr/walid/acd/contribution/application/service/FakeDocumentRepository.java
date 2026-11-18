@@ -5,6 +5,7 @@ import fr.walid.acd.contribution.application.exception.DocumentNotFoundException
 import fr.walid.acd.contribution.application.port.out.DocumentRepository;
 import fr.walid.acd.contribution.application.query.DocumentPage;
 import fr.walid.acd.contribution.application.query.DocumentSearch;
+import fr.walid.acd.contribution.application.query.DocumentVersion;
 import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 
@@ -15,6 +16,7 @@ import java.util.Optional;
 
 final class FakeDocumentRepository implements DocumentRepository {
     private final Map<DocumentId, Document> documents = new HashMap<>();
+    final Map<DocumentId, List<DocumentVersion>> versions = new HashMap<>();
     DocumentSearch lastSearch;
     DocumentPage searchResult = new DocumentPage(0, List.of());
     boolean rejectNextSave;
@@ -49,5 +51,17 @@ final class FakeDocumentRepository implements DocumentRepository {
     public DocumentPage search(DocumentSearch search) {
         lastSearch = search;
         return searchResult;
+    }
+
+    @Override
+    public boolean exists(DocumentId id) {
+        return documents.containsKey(id);
+    }
+
+    @Override
+    public Optional<DocumentVersion> version(DocumentId id, long version) {
+        return versions.getOrDefault(id, List.of()).stream()
+                .filter(stored -> stored.version() == version)
+                .findFirst();
     }
 }

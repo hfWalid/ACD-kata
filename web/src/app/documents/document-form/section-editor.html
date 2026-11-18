@@ -35,5 +35,14 @@
     formControlName="content"
     rows="4"
     class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+    [attr.aria-invalid]="showError(group().controls['content'])"
+    [attr.aria-describedby]="
+      showError(group().controls['content']) ? 'section-content-error-' + index() : null
+    "
   ></textarea>
+  @if (showError(group().controls['content'])) {
+    <p [id]="'section-content-error-' + index()" class="mt-1 text-sm text-rose-700">
+      100 000 caractères maximum par section.
+    </p>
+  }
 </div>

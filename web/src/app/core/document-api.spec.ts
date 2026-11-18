@@ -122,6 +122,32 @@ describe('DocumentApi', () => {
     });
   });
 
+  it('keeps the fields rejected by the server on a validation failure', async () => {
+    const response = firstValueFrom(
+      api.create({ templateRef: 'NOTE', title: '', sections: [{ title: 'Objet', content: 'x' }] }),
+    );
+    http.expectOne('/api/documents').flush(
+      {
+        code: 'INVALID_REQUEST',
+        detail: 'Request values are invalid',
+        errors: [
+          { field: 'sections[0].title', message: 'must not be blank' },
+          { field: 'title', message: 'must not be blank' },
+        ],
+      },
+      { status: 400, statusText: 'Bad Request' },
+    );
+
+    await expect(response).rejects.toMatchObject({
+      code: 'INVALID_REQUEST',
+      status: 400,
+      fieldErrors: [
+        { field: 'sections[0].title', message: 'must not be blank' },
+        { field: 'title', message: 'must not be blank' },
+      ],
+    });
+  });
+
   it('reports an unreachable server as a network failure', async () => {
     const response = firstValueFrom(api.get('doc-1'));
     http

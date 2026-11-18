@@ -150,7 +150,7 @@ class DocumentApiIT {
         var contract = (ObjectNode) response.getBody();
         contract.remove("servers"); // The random integration-test port is not part of the API contract.
         assertThat(contract.path("openapi").asText()).startsWith("3.0.");
-        assertThat(contract.path("paths").size()).isEqualTo(9);
+        assertThat(contract.path("paths").size()).isEqualTo(10);
         assertThat(contract.at("/components/schemas/ProblemDetail").isMissingNode()).isFalse();
         assertThat(contract.at("/components/schemas/DocumentListResponse/properties/rowCount").isMissingNode()).isFalse();
         int documentedOperations = 0;
@@ -163,7 +163,7 @@ class DocumentApiIT {
                 documentedOperations++;
             }
         }
-        assertThat(documentedOperations).isEqualTo(10);
+        assertThat(documentedOperations).isEqualTo(11);
 
         Path snapshot = Path.of("../../contracts/openapi.json").toAbsolutePath().normalize();
         if (Boolean.getBoolean("updateOpenApiSnapshot")) {

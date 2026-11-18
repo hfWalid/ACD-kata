@@ -3,6 +3,7 @@ package fr.walid.acd.architecturefixtures.foreign;
 import fr.walid.acd.contribution.application.port.in.DocumentQueries;
 import fr.walid.acd.contribution.application.query.DocumentPage;
 import fr.walid.acd.contribution.application.query.DocumentSearch;
+import fr.walid.acd.contribution.application.query.DocumentVersion;
 import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 
@@ -15,6 +16,11 @@ public final class BadPortImplementation implements DocumentQueries {
 
     @Override
     public DocumentPage search(DocumentSearch search) {
+        throw new UnsupportedOperationException("Architecture fixture only");
+    }
+
+    @Override
+    public DocumentVersion version(DocumentId id, long version) {
         throw new UnsupportedOperationException("Architecture fixture only");
     }
 }

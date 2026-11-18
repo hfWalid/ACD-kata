@@ -1,7 +1,12 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ApiFailureAlert } from '../../core/api-failure-alert';
 import { ApiFailure, DocumentApi } from '../../core/document-api';
-import { DocumentAction, DocumentDetail as Document } from '../../core/document.models';
+import {
+  DocumentAction,
+  DocumentDetail as Document,
+  DocumentVersion,
+} from '../../core/document.models';
 import {
   DocumentForm,
   DocumentFormInitial,
@@ -11,7 +16,7 @@ import { actionsFor, isEditable, STATUS_LABELS, STATUS_TONES } from '../document
 
 @Component({
   selector: 'app-document-detail',
-  imports: [DocumentForm, RouterLink],
+  imports: [ApiFailureAlert, DocumentForm, RouterLink],
   templateUrl: './document-detail.html',
 })
 export class DocumentDetail implements OnInit {
@@ -25,6 +30,9 @@ export class DocumentDetail implements OnInit {
   readonly busy = signal(false);
   readonly failure = signal<ApiFailure | null>(null);
   readonly notice = signal<string | null>(null);
+  readonly selectedVersion = signal<DocumentVersion | null>(null);
+  readonly versionLoading = signal(false);
+  readonly versionFailure = signal<ApiFailure | null>(null);
 
   readonly labels = STATUS_LABELS;
   readonly tones = STATUS_TONES;
@@ -51,6 +59,7 @@ export class DocumentDetail implements OnInit {
   load(): void {
     this.loading.set(true);
     this.failure.set(null);
+    this.closeVersion();
     this.api.get(this.id).subscribe({
       next: (document) => {
         this.document.set(document);
@@ -103,6 +112,32 @@ export class DocumentDetail implements OnInit {
       },
       error: (failure: ApiFailure) => this.handleFailure(failure),
     });
+  }
+
+  /** Loads the stored values of one version; clicking the open one closes it again. */
+  showVersion(version: number): void {
+    if (this.selectedVersion()?.version === version) {
+      this.closeVersion();
+      return;
+    }
+    this.closeVersion();
+    this.versionLoading.set(true);
+    this.api.version(this.id, version).subscribe({
+      next: (stored) => {
+        this.selectedVersion.set(stored);
+        this.versionLoading.set(false);
+      },
+      error: (failure: ApiFailure) => {
+        this.versionFailure.set(failure);
+        this.versionLoading.set(false);
+      },
+    });
+  }
+
+  closeVersion(): void {
+    this.selectedVersion.set(null);
+    this.versionFailure.set(null);
+    this.versionLoading.set(false);
   }
 
   formatDate(value: string): string {

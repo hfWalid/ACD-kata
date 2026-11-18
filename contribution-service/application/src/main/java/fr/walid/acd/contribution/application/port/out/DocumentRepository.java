@@ -2,6 +2,7 @@ package fr.walid.acd.contribution.application.port.out;
 
 import fr.walid.acd.contribution.application.query.DocumentPage;
 import fr.walid.acd.contribution.application.query.DocumentSearch;
+import fr.walid.acd.contribution.application.query.DocumentVersion;
 import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 
@@ -15,4 +16,9 @@ public interface DocumentRepository {
     void save(Document document, long expectedVersion);
 
     DocumentPage search(DocumentSearch search);
+
+    boolean exists(DocumentId id);
+
+    /** Stored values of one version, absent when the version was never written or predates snapshots. */
+    Optional<DocumentVersion> version(DocumentId id, long version);
 }

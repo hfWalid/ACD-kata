@@ -2,6 +2,7 @@ package fr.walid.acd.contribution.adapters.rest;
 
 import fr.walid.acd.contribution.application.exception.DocumentConflictException;
 import fr.walid.acd.contribution.application.exception.DocumentNotFoundException;
+import fr.walid.acd.contribution.application.exception.DocumentVersionNotFoundException;
 import fr.walid.acd.contribution.application.port.in.ChangeDocumentStatusCommand;
 import fr.walid.acd.contribution.application.port.in.CreateDocumentCommand;
 import fr.walid.acd.contribution.application.port.in.DocumentCommands;
@@ -11,8 +12,11 @@ import fr.walid.acd.contribution.application.query.DocumentPage;
 import fr.walid.acd.contribution.application.query.DocumentSearch;
 import fr.walid.acd.contribution.application.query.DocumentSort;
 import fr.walid.acd.contribution.application.query.DocumentSummary;
+import fr.walid.acd.contribution.application.query.DocumentVersion;
 import fr.walid.acd.contribution.domain.Actor;
+import fr.walid.acd.contribution.domain.AuditEntry;
 import fr.walid.acd.contribution.domain.Document;
+import fr.walid.acd.contribution.domain.DocumentAction;
 import fr.walid.acd.contribution.domain.DocumentId;
 import fr.walid.acd.contribution.domain.DocumentStatus;
 import fr.walid.acd.contribution.domain.DomainException;
@@ -45,7 +49,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.not;
 
 @WebMvcTest(controllers = DocumentController.class, properties = {
@@ -215,7 +221,8 @@ class DocumentControllerTest {
         mvc.perform(post(BASE).header("X-User", author).contentType(MediaType.APPLICATION_JSON).content(CREATE))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.errors[0].field").value("author"));
 
         verifyNoInteractions(commands);
     }
@@ -270,6 +277,51 @@ class DocumentControllerTest {
     }
 
     @Test
+    void namesEveryRejectedFieldWithItsOwnMessage() throws Exception {
+        var payload = """
+                {"templateRef":"NOTE","title":" ","sections":[{"title":"","content":"Contenu"}]}
+                """;
+
+        mvc.perform(post(BASE).header("X-User", "walid").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.errors[*].field").value(contains("sections[0].title", "title")))
+                .andExpect(jsonPath("$.errors[*].message").value(everyItem(containsString("must not be blank"))));
+
+        verifyNoInteractions(commands);
+    }
+
+    @Test
+    void reportsTheLimitThatRejectedATooLongValue() throws Exception {
+        var payload = "{\"templateRef\":\"NOTE\",\"title\":\"" + "a".repeat(201) + "\",\"sections\":[]}";
+
+        mvc.perform(post(BASE).header("X-User", "walid").contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.length()").value(1))
+                .andExpect(jsonPath("$.errors[0].field").value("title"))
+                .andExpect(jsonPath("$.errors[0].message").value(containsString("200")));
+
+        verifyNoInteractions(commands);
+    }
+
+    @Test
+    void reportsTheSectionLimitOnContentReplacement() throws Exception {
+        var sections = new StringBuilder();
+        for (int index = 0; index < 51; index++) {
+            sections.append(index == 0 ? "" : ",").append("{\"title\":\"S\",\"content\":\"x\"}");
+        }
+        var payload = "{\"expectedVersion\":1,\"title\":\"Titre\",\"sections\":[" + sections + "]}";
+
+        mvc.perform(put(BASE + "/" + ID.value() + "/content").header("X-User", "walid")
+                        .contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("sections"))
+                .andExpect(jsonPath("$.errors[0].message").value(containsString("50")));
+
+        verifyNoInteractions(commands);
+    }
+
+    @Test
     void rejectsAnInvalidDocumentIdentifier() throws Exception {
         mvc.perform(get(BASE + "/not-a-uuid"))
                 .andExpect(status().isBadRequest())
@@ -286,6 +338,46 @@ class DocumentControllerTest {
         mvc.perform(get(BASE).param(parts[0], parts[1]))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        verifyNoInteractions(queries);
+    }
+
+    @Test
+    void returnsTheValuesStoredForOneVersion() throws Exception {
+        var stored = new DocumentVersion(new AuditEntry(2, DocumentAction.CONTENT_UPDATED, AUTHOR, NOW),
+                "Note technique", List.of(new Section("Objet", "Contenu")), new DocumentStatus.Draft());
+        when(queries.version(ID, 2)).thenReturn(stored);
+
+        mvc.perform(get(BASE + "/" + ID.value() + "/versions/2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.action").value("CONTENT_UPDATED"))
+                .andExpect(jsonPath("$.author").value("walid"))
+                .andExpect(jsonPath("$.occurredAt").value("2026-11-17T10:00:00Z"))
+                .andExpect(jsonPath("$.title").value("Note technique"))
+                .andExpect(jsonPath("$.status").value("Draft"))
+                .andExpect(jsonPath("$.sections[0].title").value("Objet"))
+                .andExpect(jsonPath("$.sections[0].content").value("Contenu"));
+
+        verify(queries).version(ID, 2);
+    }
+
+    @Test
+    void reportsAVersionWithoutStoredValuesAsProblemDetail() throws Exception {
+        when(queries.version(ID, 9)).thenThrow(new DocumentVersionNotFoundException(ID, 9));
+
+        mvc.perform(get(BASE + "/" + ID.value() + "/versions/9"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("DOCUMENT_VERSION_NOT_FOUND"));
+    }
+
+    @Test
+    void rejectsANonPositiveVersion() throws Exception {
+        mvc.perform(get(BASE + "/" + ID.value() + "/versions/0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.errors[0].field").value("version"));
 
         verifyNoInteractions(queries);
     }

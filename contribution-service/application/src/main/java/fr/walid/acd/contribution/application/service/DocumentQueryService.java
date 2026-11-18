@@ -1,10 +1,12 @@
 package fr.walid.acd.contribution.application.service;
 
 import fr.walid.acd.contribution.application.exception.DocumentNotFoundException;
+import fr.walid.acd.contribution.application.exception.DocumentVersionNotFoundException;
 import fr.walid.acd.contribution.application.port.in.DocumentQueries;
 import fr.walid.acd.contribution.application.port.out.DocumentRepository;
 import fr.walid.acd.contribution.application.query.DocumentPage;
 import fr.walid.acd.contribution.application.query.DocumentSearch;
+import fr.walid.acd.contribution.application.query.DocumentVersion;
 import fr.walid.acd.contribution.domain.Document;
 import fr.walid.acd.contribution.domain.DocumentId;
 
@@ -25,5 +27,15 @@ public final class DocumentQueryService implements DocumentQueries {
     @Override
     public DocumentPage search(DocumentSearch search) {
         return repository.search(search);
+    }
+
+    @Override
+    public DocumentVersion version(DocumentId id, long version) {
+        return repository.version(id, version).orElseThrow(() -> {
+            if (!repository.exists(id)) {
+                throw new DocumentNotFoundException(id);
+            }
+            throw new DocumentVersionNotFoundException(id, version);
+        });
     }
 }

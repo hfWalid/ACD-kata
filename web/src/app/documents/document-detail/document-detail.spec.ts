@@ -136,6 +136,83 @@ describe('DocumentDetail', () => {
     http.expectNone('/api/documents/doc-1');
   });
 
+  it('lists the fields the server rejected next to the failure', async () => {
+    const { fixture, element, http } = await setup({ ...IN_REVIEW, status: 'Draft', version: 1 });
+
+    fixture.componentInstance.saveContent({
+      templateRef: 'notice-v1',
+      title: '',
+      sections: [],
+    });
+    http.expectOne('/api/documents/doc-1/content').flush(
+      {
+        code: 'INVALID_REQUEST',
+        detail: 'Request values are invalid',
+        errors: [{ field: 'title', message: 'must not be blank' }],
+      },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    fixture.detectChanges();
+
+    const alert = element.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('Request values are invalid');
+    expect(alert?.textContent).toContain('title : must not be blank');
+  });
+
+  it('shows the values stored for one version and closes them again', async () => {
+    const { fixture, element, http } = await setup();
+
+    const buttons = () =>
+      [...element.querySelectorAll('tbody button')] as HTMLButtonElement[];
+    expect(buttons().map((button) => button.textContent?.trim())).toEqual([
+      'Voir les valeurs',
+      'Voir les valeurs',
+      'Voir les valeurs',
+    ]);
+
+    buttons()[0].click();
+    http.expectOne('/api/documents/doc-1/versions/1').flush({
+      version: 1,
+      action: 'CREATED',
+      author: 'walid',
+      occurredAt: '2026-11-17T10:00:00Z',
+      title: 'Notice initiale',
+      status: 'Draft',
+      sections: [{ title: 'Objet', content: 'Première rédaction' }],
+    });
+    fixture.detectChanges();
+
+    const panel = element.querySelector('#version-values');
+    expect(panel?.textContent).toContain('Valeurs de la version 1');
+    expect(panel?.textContent).toContain('Notice initiale');
+    expect(panel?.textContent).toContain('Première rédaction');
+    expect(element.querySelector('tbody button')?.getAttribute('aria-expanded')).toBe('true');
+
+    (element.querySelector('#version-values button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(element.querySelector('#version-values')).toBeNull();
+    expect(element.querySelector('tbody button')?.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('reports a version without stored values instead of inventing them', async () => {
+    const { fixture, element, http } = await setup();
+
+    (element.querySelector('tbody button') as HTMLButtonElement).click();
+    http
+      .expectOne('/api/documents/doc-1/versions/1')
+      .flush(
+        { code: 'DOCUMENT_VERSION_NOT_FOUND', detail: 'No values are stored for this document version' },
+        { status: 404, statusText: 'Not Found' },
+      );
+    fixture.detectChanges();
+
+    const alert = element.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('No values are stored for this document version');
+    expect(alert?.textContent).toContain('DOCUMENT_VERSION_NOT_FOUND');
+    expect(element.querySelector('#version-values')).toBeNull();
+  });
+
   it('reloads the document and keeps the input on a stale version', async () => {
     const { fixture, element, http } = await setup({ ...IN_REVIEW, status: 'Draft', version: 1 });
 
