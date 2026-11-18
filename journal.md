@@ -133,10 +133,29 @@ Tranche S5–S7 explicitement demandée, réalisée dans l'ordre intégration �
 Deux défauts d'outillage rencontrés et corrigés, sans contournement du comportement :
 
 - `@for` sur un `FormArray` muté en place produisait `NG0100` à l'ajout d'une ligne (reproduit avec un composant minimal hors du projet). Les lignes passent par une liste en signal et un `SectionEditor` lié par `[formGroup]`.
-- Le gestionnaire `sortChanged` doublait la requête de bloc : l'infinite row model recharge déjà les blocs au tri. Seuls les filtres de la barre d'outils purgent le cache.
+- Le gestionnaire `sortChanged` doublait la requête de bloc : l'infinite row model recharge déjà les blocs au tri. Seuls les filtres de la barre d'outils relancent la requête.
 
 ### Vérification exécutée
 
 - `npm --prefix web run test:ci` : **30 tests réussis** (7 fichiers). `format:check` et `build` réussis ; bundle initial 268 kB, AG Grid dans un bloc paresseux de 1,23 MB.
 - Parcours navigateur avec PostgreSQL et le backend local : liste sur 10 003 documents (`startRow=0&endRow=25&sort=updatedAt:desc`), tri par en-tête (`sort=version:asc`, une requête), filtre `filter.status=InReview` (1 000 lignes), ouverture d'un document, création via le formulaire, soumission (version 2, action suivante), puis refus `EMPTY_DOCUMENT` affiché pour un brouillon sans section. Aucune erreur console en dehors du 409 attendu.
 - Le volume local contient désormais les 10 000 documents de démonstration créés par `make seed-documents` et trois documents créés pendant le parcours. Aucune donnée préexistante n'a été supprimée ; les tests automatisés utilisent toujours des bases Testcontainers jetables.
+
+## Pagination et recherche réactive — 18 novembre 2026
+
+Incrément demandé après la tranche S5–S7 : pagination dans la grille, filtres cohérents avec le contrat et recherche au fil de la frappe. Le domaine, l'API et les tests backend n'ont pas changé ; seuls le composant de liste, son gabarit, ses tests et la documentation ont évolué.
+
+### Décisions
+
+- **Pagination native d'AG Grid alimentée par `rowCount`**, pas un compteur local : `pagination`, `paginationPageSize` 25, `paginationPageSizeSelector` 25/50/100. Le nombre de pages est donc celui du serveur, et non celui des lignes déjà chargées.
+- **`cacheBlockSize` maintenu à 25** quelle que soit la taille de page. Une page de 50 lignes demande deux blocs, donc deux requêtes, et seuls les blocs visibles sont chargés : la fenêtre reste celle du contrat, la pagination ne change pas la stratégie de chargement.
+- **Rechargement par réaffectation du datasource** (`setGridOption('datasource', …)`) plutôt que `purgeInfiniteCache()` : reconstruire le row model repart de la première page et vide les blocs obsolètes en une seule requête. L'ancienne purge conservait la page courante, ce qui laissait l'utilisateur sur une page inexistante après un filtre restrictif.
+- **Découplage saisie / requête** : `searchInput` suit chaque frappe, `search` n'est appliqué qu'après 300 ms d'inactivité, avec annulation du minuteur à l'effacement et à la destruction. Un terme identique après `trim()` ne requête pas.
+- **Aucun filtre de colonne AG Grid activé** : le serveur n'exécute que `filter.status` et `q`. Mieux vaut une barre d'outils honnête qu'un filtre client qui ne filtrerait que les blocs déjà chargés.
+
+### Vérification exécutée
+
+- `npm --prefix web run test:ci` : **33 tests réussis** (7 fichiers), dont la temporisation de la recherche, l'absence de requête pour un terme inchangé, la réinitialisation en un seul rechargement et les options de pagination.
+- Navigateur, backend et PostgreSQL locaux : page suivante → `startRow=50&endRow=75` (bloc suivant) ; dernière page → `startRow=10000&endRow=10025` pour 10 006 lignes et « 10 001 à 10 006 sur 10 006 » ; taille 50 → 201 pages ; `filter.status=InReview` depuis la page 201 → retour page 1 et `startRow=0`.
+- Recherche : frappe de `00042` en cinq touches → **une seule** requête `q=00042`, 248 ms après la dernière touche, aucun appel pour les termes intermédiaires ; « Effacer les filtres » → une requête sans `q` ni `filter.status`.
+- Frappe rapide combinée à un changement de taille de page et à un saut de page : **aucun message console**, ni avertissement AG Grid sur les blocs obsolètes, ni `NG0100`.

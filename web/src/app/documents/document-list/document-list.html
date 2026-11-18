@@ -16,11 +16,15 @@
       <input
         id="document-search"
         type="search"
-        [value]="search()"
-        (change)="onSearch($any($event.target).value)"
+        [value]="searchInput()"
+        (input)="onSearchInput($any($event.target).value)"
         class="mt-1 w-64 rounded-md border border-slate-300 px-3 py-2 text-sm"
         placeholder="contrat"
+        aria-describedby="document-search-hint"
       />
+      <p id="document-search-hint" class="mt-1 text-xs text-slate-500">
+        Recherche au fil de la frappe, littérale et insensible à la casse.
+      </p>
     </div>
     <div>
       <label for="document-status" class="block text-sm font-medium text-slate-700">Statut</label>
@@ -36,6 +40,15 @@
         }
       </select>
     </div>
+    @if (hasFilters()) {
+      <button
+        type="button"
+        (click)="clearFilters()"
+        class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-100"
+      >
+        Effacer les filtres
+      </button>
+    }
   </div>
 
   <p role="status" aria-live="polite" class="text-sm text-slate-600">

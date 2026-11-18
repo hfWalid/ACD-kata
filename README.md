@@ -4,7 +4,7 @@ Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine dé
 
 **Tranche courante : S1–S7 — domaine, application, PostgreSQL, REST et interface Angular.** Les résultats de vérification sont consignés dans le journal. S8 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **101 tests backend et 30 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, et parcours navigateur exécuté sur la liste, la création et les transitions.
+Validation locale : **101 tests backend et 33 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, et parcours navigateur exécuté sur la liste, la création et les transitions.
 
 ## Ce qui est construit
 

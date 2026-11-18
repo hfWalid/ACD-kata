@@ -19,7 +19,7 @@ Le backend doit tourner (`make backend-run` à la racine). `proxy.conf.json` rel
 | `src/app/core/document-api.ts` | Client HTTP typé, en-tête `X-User` sur les mutations, `ApiFailure` à partir du `ProblemDetail` |
 | `src/app/documents/document-grid-query.ts` | Traduction du modèle de tri AG Grid vers `sort=champ:direction` |
 | `src/app/documents/document-datasource.ts` | `IDatasource` de l'*infinite row model* : une requête par bloc |
-| `src/app/documents/document-list/` | Grille, barre d'outils (statut, recherche), états vide et erreur |
+| `src/app/documents/document-list/` | Grille paginée, barre d'outils (statut, recherche réactive, réinitialisation), états vide et erreur |
 | `src/app/documents/document-detail/` | Document, audit, actions du statut, formulaire si modifiable |
 | `src/app/documents/document-form/` | Formulaire réactif et éditeur de section |
 | `src/app/documents/document-status.ts` | Libellés, couleurs et table des actions autorisées |
@@ -29,6 +29,8 @@ Le backend doit tourner (`make backend-run` à la racine). `proxy.conf.json` rel
 AG Grid **Community 36.3.0** avec `rowModelType: 'infinite'`. Le *Server-Side Row Model* proposé par la fiche d'origine est une fonctionnalité Enterprise qui suppose une licence ; le contrat de l'API (fenêtre `[startRow, endRow[`, `rowCount`, tri, filtres) correspond exactement à l'infinite row model. Détail et limites dans [la fiche S6](../../../docs/phases/S6-grid.md).
 
 Le thème vient de la *Theming API* (`themeQuartz`), injectée par AG Grid : aucun fichier CSS de thème n'est importé. Les styles applicatifs passent par Tailwind 3 (`.postcssrc.json`, `tailwind.config.js`) ; les classes de statut sont écrites littéralement pour rester détectées.
+
+La pagination est celle d'AG Grid, alimentée par le `rowCount` du serveur (25, 50 ou 100 lignes par page). La recherche est découplée de la frappe : la requête part 300 ms après la dernière touche, et tout changement de filtre repart de la première page.
 
 ## Tests
 
