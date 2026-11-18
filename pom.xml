@@ -73,7 +73,7 @@
                         <goals><goal>report</goal></goals>
                     </execution>
                     <execution>
-                        <id>transition-branch-coverage</id>
+                        <id>domain-application-coverage</id>
                         <phase>verify</phase>
                         <goals><goal>check</goal></goals>
                         <configuration>
@@ -81,11 +81,17 @@
                                 <rule>
                                     <element>CLASS</element>
                                     <includes>
-                                        <include>fr.walid.acd.contribution.domain.DocumentTransition</include>
+                                        <include>fr.walid.acd.contribution.domain.*</include>
+                                        <include>fr.walid.acd.contribution.application.*</include>
                                     </includes>
                                     <limits>
                                         <limit>
                                             <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>1.0</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>LINE</counter>
                                             <value>COVEREDRATIO</value>
                                             <minimum>1.0</minimum>
                                         </limit>

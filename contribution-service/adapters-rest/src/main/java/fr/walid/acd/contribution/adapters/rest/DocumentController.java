@@ -79,12 +79,16 @@ public class DocumentController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Read a document and its audit trail")
+    @ApiResponse(responseCode = "200", description = "Document and audit trail",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse get(@PathVariable UUID id) {
         return DocumentResponse.from(queries.get(new DocumentId(id)));
     }
 
     @GetMapping
     @Operation(summary = "Search documents using an exclusive row window")
+    @ApiResponse(responseCode = "200", description = "Filtered total and summary rows",
+            content = @Content(schema = @Schema(implementation = DocumentListResponse.class)))
     public DocumentListResponse search(
             @RequestParam(defaultValue = "0") int startRow,
             @RequestParam(defaultValue = "100") int endRow,
@@ -100,6 +104,8 @@ public class DocumentController {
 
     @PutMapping(value = "/{id}/content", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Replace the content of a draft or rejected document")
+    @ApiResponse(responseCode = "200", description = "Document with its new version",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse update(@PathVariable UUID id,
                                    @RequestHeader("X-User") @NotBlank @Size(max = 100) String author,
                                    @Valid @RequestBody UpdateDocumentRequest request) {
@@ -109,6 +115,8 @@ public class DocumentController {
 
     @PostMapping(value = "/{id}/submit", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Submit a completed draft or rejected document")
+    @ApiResponse(responseCode = "200", description = "Document with its new version",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse submit(@PathVariable UUID id,
                                    @RequestHeader("X-User") @NotBlank @Size(max = 100) String author,
                                    @Valid @RequestBody ChangeDocumentStatusRequest request) {
@@ -117,6 +125,8 @@ public class DocumentController {
 
     @PostMapping(value = "/{id}/start-review", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Start reviewing a submitted document")
+    @ApiResponse(responseCode = "200", description = "Document with its new version",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse startReview(@PathVariable UUID id,
                                         @RequestHeader("X-User") @NotBlank @Size(max = 100) String author,
                                         @Valid @RequestBody ChangeDocumentStatusRequest request) {
@@ -125,6 +135,8 @@ public class DocumentController {
 
     @PostMapping(value = "/{id}/approve", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Approve a document in review")
+    @ApiResponse(responseCode = "200", description = "Document with its new version",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse approve(@PathVariable UUID id,
                                     @RequestHeader("X-User") @NotBlank @Size(max = 100) String author,
                                     @Valid @RequestBody ChangeDocumentStatusRequest request) {
@@ -133,6 +145,8 @@ public class DocumentController {
 
     @PostMapping(value = "/{id}/reject", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Reject a document in review")
+    @ApiResponse(responseCode = "200", description = "Document with its new version",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse reject(@PathVariable UUID id,
                                    @RequestHeader("X-User") @NotBlank @Size(max = 100) String author,
                                    @Valid @RequestBody ChangeDocumentStatusRequest request) {
@@ -141,6 +155,8 @@ public class DocumentController {
 
     @PostMapping(value = "/{id}/publish", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Publish an approved document")
+    @ApiResponse(responseCode = "200", description = "Document with its new version",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse publish(@PathVariable UUID id,
                                     @RequestHeader("X-User") @NotBlank @Size(max = 100) String author,
                                     @Valid @RequestBody ChangeDocumentStatusRequest request) {
@@ -149,6 +165,8 @@ public class DocumentController {
 
     @PostMapping(value = "/{id}/archive", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Archive a published document")
+    @ApiResponse(responseCode = "200", description = "Document with its new version",
+            content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse archive(@PathVariable UUID id,
                                     @RequestHeader("X-User") @NotBlank @Size(max = 100) String author,
                                     @Valid @RequestBody ChangeDocumentStatusRequest request) {

@@ -19,6 +19,8 @@ L'API est **code-first** : les contrôleurs et DTO alimentent springdoc, exposé
 
 Toutes les mutations portent `X-User`, auteur pédagogique uniquement. Les mutations d'un document existant portent aussi `expectedVersion` dans le JSON. Il n'y a pas d'authentification ou d'autorisation réelle ; l'application est destinée au local et écoute par défaut sur `127.0.0.1:8081`.
 
+Chaque opération déclare sa réponse de succès dans le contrat exporté : `201` et `Location` pour la création, `200` avec `DocumentResponse` pour la lecture, la correction et les transitions, `200` avec `DocumentListResponse` pour la liste. Le test HTTP exige qu'aucune opération ne soit exportée sans réponse de succès et que le schéma de liste expose `rowCount`.
+
 ## Liste
 
 ```http

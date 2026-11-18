@@ -11,6 +11,8 @@ import fr.walid.acd.contribution.domain.DocumentStatus;
 import fr.walid.acd.contribution.domain.Section;
 import fr.walid.acd.contribution.domain.TemplateRef;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest(classes = JpaDocumentRepositoryIT.PersistenceTestConfiguration.class, properties = {
         "spring.jpa.hibernate.ddl-auto=validate",
         "spring.jpa.open-in-view=false",
+        "spring.jpa.properties.hibernate.generate_statistics=true",
         "spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.xml"
 })
 class JpaDocumentRepositoryIT {
@@ -75,6 +78,9 @@ class JpaDocumentRepositoryIT {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
 
     @Autowired
     private ReadInterleaving readInterleaving;
@@ -324,6 +330,21 @@ class JpaDocumentRepositoryIT {
         var noMatches = documents.search(search(0, 50, Optional.empty(), "absent"));
         assertThat(noMatches.rowCount()).isZero();
         assertThat(noMatches.rows()).isEmpty();
+    }
+
+    @Test
+    void listProjectionLoadsNoContentOrAuditCollection() {
+        documents.add(draft(1, "Note", List.of(new Section("Résumé", "Contenu"))));
+        var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+
+        var page = documents.search(search(0, 10, Optional.empty(), ""));
+        assertThat(page.rows()).hasSize(1);
+        assertThat(statistics.getCollectionLoadCount() + statistics.getCollectionFetchCount()).isZero();
+
+        // The same counter must react to a read that does load the aggregate collections.
+        documents.findById(id(1));
+        assertThat(statistics.getCollectionLoadCount()).isPositive();
     }
 
     private boolean commitAfterBothLoaded(Document candidate, CountDownLatch loaded, CountDownLatch start) {

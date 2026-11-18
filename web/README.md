@@ -12,7 +12,7 @@ npm run build
 npm run format:check
 ```
 
-Le serveur de développement écoute sur `http://127.0.0.1:4200`.
+Le serveur de développement écoute sur `http://127.0.0.1:4200`. Il relaie `/api` vers le backend local (`http://127.0.0.1:8081`, voir `proxy.conf.json`), ce qui évite d'ajouter du CORS côté serveur pour S5. Démarrer le backend avec `make backend-run` à la racine.
 
 Les modules Angular, le CLI et le builder sont verrouillés sur le même correctif 21.2.26. TypeScript reste en 5.9. Le fichier `package-lock.json` fixe les dépendances transitives ; utiliser `npm ci` pour les reproduire.
 

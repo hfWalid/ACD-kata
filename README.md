@@ -4,7 +4,7 @@ Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine dé
 
 **Tranche courante : S1–S4 — domaine, application, PostgreSQL et REST.** Les résultats de vérification sont consignés dans le journal. Le shell Angular reste au stade S0 ; S5 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **100 tests backend réussis, aucun ignoré**, contrat OpenAPI comparé et couverture des branches du domaine et de l'application à 100 %.
+Validation locale : **101 tests backend réussis, aucun ignoré**, contrat OpenAPI comparé et couverture des branches et lignes du domaine et de l'application à 100 %, exigée par le build.
 
 ## Ce qui est construit
 
@@ -37,7 +37,7 @@ make web-verify
 
 `backend-unit-test` exécute les tests unitaires/MVC et les contrôles d'architecture sans base. `backend-verify` ajoute les tests `*IT` via Failsafe, sur des bases PostgreSQL jetables créées automatiquement par Testcontainers. Il ne se connecte pas à la base Compose locale. Docker indisponible fait échouer les tests d'intégration.
 
-La couverture est disponible dans `contribution-service/domain/target/site/jacoco/` et `contribution-service/application/target/site/jacoco/`. Le build exige 100 % des branches de `DocumentTransition` couvertes.
+La couverture est disponible dans `contribution-service/domain/target/site/jacoco/` et `contribution-service/application/target/site/jacoco/`. Le build exige 100 % des branches et des lignes de `domain` et `application`, soit notamment toutes les branches de `DocumentTransition`.
 
 ## Démarrer le backend local
 

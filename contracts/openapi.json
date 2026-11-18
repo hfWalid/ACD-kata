@@ -68,6 +68,16 @@
                 }
               }
             }
+          },
+          "200" : {
+            "description" : "Document with its new version",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -148,6 +158,16 @@
               "application/problem+json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Filtered total and summary rows",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentListResponse"
                 }
               }
             }
@@ -286,6 +306,16 @@
                 }
               }
             }
+          },
+          "200" : {
+            "description" : "Document with its new version",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -350,6 +380,16 @@
               "application/problem+json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Document with its new version",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
                 }
               }
             }
@@ -420,6 +460,16 @@
                 }
               }
             }
+          },
+          "200" : {
+            "description" : "Document with its new version",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -484,6 +534,16 @@
               "application/problem+json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Document with its new version",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
                 }
               }
             }
@@ -554,6 +614,16 @@
                 }
               }
             }
+          },
+          "200" : {
+            "description" : "Document with its new version",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -621,6 +691,16 @@
                 }
               }
             }
+          },
+          "200" : {
+            "description" : "Document with its new version",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -666,6 +746,16 @@
               "application/problem+json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "200" : {
+            "description" : "Document and audit trail",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DocumentResponse"
                 }
               }
             }
@@ -750,30 +840,6 @@
           }
         }
       },
-      "CreateDocumentRequest" : {
-        "required" : [ "sections", "templateRef", "title" ],
-        "type" : "object",
-        "properties" : {
-          "templateRef" : {
-            "maxLength" : 100,
-            "minLength" : 0,
-            "type" : "string"
-          },
-          "title" : {
-            "maxLength" : 200,
-            "minLength" : 0,
-            "type" : "string"
-          },
-          "sections" : {
-            "maxItems" : 50,
-            "minItems" : 0,
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/SectionRequest"
-            }
-          }
-        }
-      },
       "AuditEntryResponse" : {
         "type" : "object",
         "properties" : {
@@ -846,6 +912,30 @@
           }
         }
       },
+      "CreateDocumentRequest" : {
+        "required" : [ "sections", "templateRef", "title" ],
+        "type" : "object",
+        "properties" : {
+          "templateRef" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "title" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "sections" : {
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SectionRequest"
+            }
+          }
+        }
+      },
       "ChangeDocumentStatusRequest" : {
         "required" : [ "expectedVersion" ],
         "type" : "object",
@@ -855,6 +945,44 @@
             "exclusiveMinimum" : true,
             "type" : "integer",
             "format" : "int64"
+          }
+        }
+      },
+      "DocumentListResponse" : {
+        "type" : "object",
+        "properties" : {
+          "rowCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/DocumentSummaryResponse"
+            }
+          }
+        }
+      },
+      "DocumentSummaryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }
       }

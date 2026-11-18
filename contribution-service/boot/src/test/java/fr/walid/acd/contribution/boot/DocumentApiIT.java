@@ -23,6 +23,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -150,8 +151,19 @@ class DocumentApiIT {
         contract.remove("servers"); // The random integration-test port is not part of the API contract.
         assertThat(contract.path("openapi").asText()).startsWith("3.0.");
         assertThat(contract.path("paths").size()).isEqualTo(9);
-        assertThat(contract.at("/paths/~1api~1documents/post/responses/201").isMissingNode()).isFalse();
         assertThat(contract.at("/components/schemas/ProblemDetail").isMissingNode()).isFalse();
+        assertThat(contract.at("/components/schemas/DocumentListResponse/properties/rowCount").isMissingNode()).isFalse();
+        int documentedOperations = 0;
+        for (var path : contract.withObject("/paths").properties()) {
+            for (var operation : path.getValue().properties()) {
+                assertThat(operation.getValue().path("responses").has("200")
+                        || operation.getValue().path("responses").has("201"))
+                        .as("%s %s declares its success response", operation.getKey().toUpperCase(Locale.ROOT), path.getKey())
+                        .isTrue();
+                documentedOperations++;
+            }
+        }
+        assertThat(documentedOperations).isEqualTo(10);
 
         Path snapshot = Path.of("../../contracts/openapi.json").toAbsolutePath().normalize();
         if (Boolean.getBoolean("updateOpenApiSnapshot")) {
