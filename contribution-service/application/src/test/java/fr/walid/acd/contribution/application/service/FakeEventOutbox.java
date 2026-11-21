@@ -18,6 +18,10 @@ final class FakeEventOutbox implements EventOutbox {
     final List<UUID> published = new ArrayList<>();
     final Map<UUID, String> failures = new LinkedHashMap<>();
     final Map<UUID, Instant> nextAttempts = new HashMap<>();
+    final List<Instant> purgeThresholds = new ArrayList<>();
+    int purged;
+    long pending;
+    long failed;
     int lastLimit;
     Instant lastLease;
 
@@ -44,5 +48,21 @@ final class FakeEventOutbox implements EventOutbox {
         failures.put(eventId, error);
         nextAttempts.put(eventId, nextAttemptAt);
         due.removeIf(entry -> entry.id().equals(eventId));
+    }
+
+    @Override
+    public long countPending() {
+        return pending;
+    }
+
+    @Override
+    public long countFailed() {
+        return failed;
+    }
+
+    @Override
+    public int purgePublishedBefore(Instant threshold) {
+        purgeThresholds.add(threshold);
+        return purged;
     }
 }

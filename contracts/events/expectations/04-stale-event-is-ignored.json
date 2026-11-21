@@ -1,0 +1,17 @@
+{
+  "description": "Un événement plus ancien que la version déjà appliquée est ignoré sans effet.",
+  "outcome": "IGNORE",
+  "currentVersion": 4,
+  "payload": {
+    "eventId": "d1e2f3a4-5b6c-4d7e-8f9a-0b1c2d3e4f50",
+    "type": "document.lifecycle.changed",
+    "schemaVersion": 1,
+    "occurredAt": "2026-11-18T09:00:01Z",
+    "documentId": "5f476a52-0145-4e1e-9366-d61b8e529ff4",
+    "documentVersion": 2,
+    "action": "SUBMITTED",
+    "status": "Submitted",
+    "title": "Contrat d'exploitation",
+    "actor": "walid"
+  }
+}

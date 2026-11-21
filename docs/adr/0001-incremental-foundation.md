@@ -32,7 +32,7 @@ Le domaine ne peut pas importer un framework absent de son classpath ; le garde-
 
 Le coût accepté est la répétition de quelques métadonnées Maven et une commande de réacteur plutôt qu'un build de fichier isolé. Aucune couche générique ou classe future n'est créée pour justifier les modules.
 
-Cette décision ne prétend pas démontrer que l'ACD réel utilise ces frontières ni justifier deux microservices en production. La séparation distribuée sera réévaluée en S8 avec ses transactions, contrats, effets dupliqués et responsabilités de décision.
+Cette décision ne prétend pas démontrer que l'ACD réel utilise ces frontières ni justifier deux microservices en production. La séparation distribuée est réévaluée en S8 : transactions, contrat versionné et rejeu sont traités dans [ADR 0004](0004-transactional-outbox-and-event-contract.md), la responsabilité de décision dans [ADR 0005](0005-review-context-ownership.md).
 
 ## Vérification
 

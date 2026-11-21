@@ -28,9 +28,9 @@ La version est stockée dans la table d'outbox : une ligne écrite avant une mon
 
 ## Vérification
 
-- `./mvnw verify` : 162 tests backend, dont 6 tests d'outbox en base réelle, 2 tests Kafka et un test de bout en bout HTTP → outbox → relais → broker.
+- `./mvnw verify` : 171 tests backend, dont 9 tests d'outbox en base réelle, 2 tests Kafka et un test de bout en bout HTTP → outbox → relais → broker.
 - Le test `rollsBackTheDocumentChangeWhenTheOutboxRejectsTheEvent` prouve qu'un échec d'écriture d'événement annule la mutation.
-- Le test `aSecondRelaySkipsEventsBeingClaimedByAnother` prouve le `SKIP LOCKED`.
+- `aSecondRelaySkipsEventsBeingClaimedByAnother` prouve le `SKIP LOCKED`, `twoRelaysNeverPublishTheSameEventTwice` prouve le résultat avec deux relais concurrents sur vingt événements.
 - Parcours local réel : création, soumission, revue, approbation observées dans Kafka et dans le service de revue ; deux rejeux du même événement n'ajoutent ni ligne d'inbox ni tâche.
 
 ## Alternatives écartées

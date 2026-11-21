@@ -10,7 +10,7 @@ Le modèle qui franchit la frontière applicative est `DocumentDetail` : les req
 
 Les règles ArchUnit contrôlent la pureté du domaine, les dépendances de l'application, l'indépendance des adapters, l'emplacement des implémentations de ports, la lecture des seuls ports par les adapters, l'absence de l'agrégat dans le transport REST et la séparation d'avec la racine de composition. Chaque règle possède une fixture négative qui prouve qu'elle mord.
 
-`EventPublisher` est différé à S8 : cette tranche ne possède aucun destinataire externe. L'audit est conservé dans l'agrégat et sera durable en S3.
+`EventPublisher` est différé à S8 : cette tranche ne possède aucun destinataire externe. Il est réalisé en S8 avec l'outbox et le producteur Kafka, sans modifier cette frontière : voir [S8](S8-events.md). L'audit est conservé dans l'agrégat et sera durable en S3.
 
 Vérification ciblée :
 

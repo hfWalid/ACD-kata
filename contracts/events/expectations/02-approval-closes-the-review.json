@@ -1,0 +1,25 @@
+{
+  "description": "Une approbation clôt la tâche ouverte par la soumission.",
+  "outcome": "DECIDE",
+  "currentVersion": 3,
+  "scenario": {
+    "actor": "relecteur",
+    "title": "Contrat d'exploitation",
+    "templateRef": "report",
+    "sectionTitle": "Contexte",
+    "sectionContent": "Un événement par mutation.",
+    "steps": ["SUBMITTED", "REVIEW_STARTED", "APPROVED"]
+  },
+  "payload": {
+    "eventId": "8f8f5b1c-3d2e-4a4b-9c6d-7e8f9a0b1c2d",
+    "type": "document.lifecycle.changed",
+    "schemaVersion": 1,
+    "occurredAt": "2026-11-18T10:00:03Z",
+    "documentId": "5f476a52-0145-4e1e-9366-d61b8e529ff4",
+    "documentVersion": 4,
+    "action": "APPROVED",
+    "status": "Approved",
+    "title": "Contrat d'exploitation",
+    "actor": "relecteur"
+  }
+}

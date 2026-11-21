@@ -2,7 +2,7 @@
 
 ## Progression incrémentale
 
-1. Lire `README.md`, `docs/roadmap.md`, la fiche de phase concernée et les ADR avant toute modification.
+1. Lire `1- README.md`, `docs/roadmap.md`, la fiche de phase concernée et les ADR avant toute modification.
 2. Implémenter **uniquement les incréments explicitement demandés**. Après S0, la tranche S1–S4 a été autorisée. Ne pas commencer S5 ou les phases suivantes sans nouvelle demande.
 3. Lire le code et les tests présents avant de proposer une structure. Préserver le travail des autres contributeurs et les changements sans rapport.
 4. Pour S1 et les phases fonctionnelles, avancer par petites boucles TDD : comportement précis, test rouge observé, minimum de code, test vert, refactoring.

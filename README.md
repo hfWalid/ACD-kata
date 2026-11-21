@@ -4,7 +4,7 @@ Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine dé
 
 **Tranche courante : S1–S8 — domaine, application, PostgreSQL, REST, interface Angular, outbox et Kafka.** Les résultats de vérification sont consignés dans le journal. S9 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **162 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI et contrat d'événement comparés, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, parcours navigateur sur S5–S7 et parcours Kafka réel sur S8.
+Validation locale : **171 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI et contrat d'événement comparés, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, parcours navigateur sur S5–S7 et parcours Kafka réel sur S8.
 
 ## Ce qui est construit
 
@@ -129,6 +129,8 @@ La commande écrit directement en SQL des agrégats cohérents (version = nombre
 - `contracts/openapi.json` : export versionné comparé au contrat réel par le test HTTP.
 - `/actuator/health` : santé sans détails internes.
 - `/actuator/metrics` et `/actuator/prometheus` : métriques applicatives.
+- Outbox : `acd.outbox.pending` (en attente), `acd.outbox.failed` (au moins un échec), `acd.outbox.published` et `acd.outbox.purged` (compteurs). Une jauge `pending` qui monte signale un broker en retard.
+- `contracts/events/` : contrat d'événement versionné et attentes du consommateur, vérifiées des deux côtés.
 
 Pour mettre à jour volontairement l'export après une évolution revue du contrat :
 
@@ -140,7 +142,7 @@ La vérification normale compare le contrat ; elle ne réécrit pas l'export.
 
 ## Progression et CI
 
-Les [ADR](docs/adr/0003-application-read-model-and-atomic-ui.md) portent les décisions, le [journal](journal.md) l'historique, et [design/](design/README.md) les schémas : frontières, domaine, données, cas d'usage, séquences et interface.
+Les [ADR](docs/adr/0003-application-read-model-and-atomic-ui.md) portent les décisions, le [journal](journal.md) l'historique, et [design/](design/1-%20README.md) les schémas : frontières, domaine, données, cas d'usage, séquences et interface.
 
 Lire aussi la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), celle de la [grille](docs/phases/S6-grid.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
 

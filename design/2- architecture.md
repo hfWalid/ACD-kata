@@ -69,7 +69,7 @@ flowchart TB
 | `DocumentCommands` | contribution | entrant | 8 commandes, rendent `DocumentDetail` |
 | `DocumentQueries` | contribution | entrant | `get`, `search`, `version` |
 | `DocumentRepository` | contribution | sortant | `findById`, `add`, `save`, `search`, `exists`, `version` |
-| `EventOutbox` | contribution | sortant | `append`, `claimDue`, `markPublished`, `markFailed` |
+| `EventOutbox` | contribution | sortant | `append`, `claimDue`, `markPublished`, `markFailed`, `countPending`, `countFailed`, `purgePublishedBefore` |
 | `EventPublisher` | contribution | sortant | `publish` |
 | `Transactions` | les deux | technique | `inTransaction` : l'atomicité reste une décision applicative |
 | `ReviewTasks` | review | sortant | `remember`, `advanceTo`, `openReview`, `decide` |
@@ -88,22 +88,25 @@ Tous les ports rendent des modèles applicatifs, jamais l'agrégat ([ADR 0003](.
 | Implémentation de port hors `application`/adapters | ArchUnit |
 | 100 % branches et lignes de `domain` et `application` | JaCoCo, échec du build |
 | Cascade atomique de l'interface | `scripts/web-structure.test.mjs` |
-| Format d'événement stable | comparaison au contrat versionné |
+| Format d'événement stable | contrat versionné + attentes du consommateur rejouées côté producteur |
 | Rejeu sans effet | `ReviewTaskConsumerIT`, `JdbcEventOutboxIT` |
+| Deux relais ne publient jamais le même événement | `twoRelaysNeverPublishTheSameEventTwice` |
+| Retard et échecs observables | jauges `acd.outbox.pending` / `acd.outbox.failed`, vérifiées dans `OutboxPublicationIT` |
+| L'outbox ne grossit pas sans fin | purge après rétention, testée en base |
 
 ## Volume de tests
 
 | Niveau | Tests |
 |---|---|
 | Domaine | 18 |
-| Application | 33 |
+| Application | 34 |
 | MVC (`@WebMvcTest`) | 50 |
-| Persistance (Testcontainers) | 24 |
-| Messagerie (unitaires + Kafka réel) | 7 |
+| Persistance (Testcontainers) | 26 |
+| Messagerie (unitaires, contrat, Kafka réel) | 9 |
 | Architecture (ArchUnit) | 11 |
 | HTTP de bout en bout | 7 |
-| Contexte review | 12 |
-| **Backend** | **162** |
+| Contexte review | 16 |
+| **Backend** | **171** |
 | Interface (Vitest) | 40 |
 | Structure de l'interface (Node) | 8 |
 
@@ -129,7 +132,7 @@ flowchart LR
 | Broker local | Kafka 3.9.1 KRaft, un nœud, `127.0.0.1:9092` |
 | Topics | `acd.document.lifecycle.v1`, `...v1.DLT` |
 | Tests d'intégration | Testcontainers (PostgreSQL et Kafka), jamais l'infra Compose |
-| Observation | `/actuator/health`, `metrics`, `prometheus`, compteur `acd.outbox.published` |
+| Observation | `/actuator/health`, `metrics`, `prometheus` ; jauges `acd.outbox.pending`, `acd.outbox.failed` ; compteurs `published`, `purged` |
 
 ## Pile technique
 

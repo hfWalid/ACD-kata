@@ -30,6 +30,8 @@ backend-verify:
       junit:
         - contribution-service/*/target/surefire-reports/TEST-*.xml
         - contribution-service/*/target/failsafe-reports/TEST-*.xml
+        - review-service/target/surefire-reports/TEST-*.xml
+        - review-service/target/failsafe-reports/TEST-*.xml
     paths:
       - contribution-service/domain/target/site/jacoco/
       - contribution-service/application/target/site/jacoco/

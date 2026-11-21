@@ -27,4 +27,13 @@ public interface EventOutbox {
 
     /** Records a failed publication and postpones the next attempt. */
     void markFailed(UUID eventId, String error, Instant nextAttemptAt);
+
+    /** Events still waiting for the broker, whether they already failed or not. */
+    long countPending();
+
+    /** Events still unpublished after at least one failed publication. */
+    long countFailed();
+
+    /** Removes events published before {@code threshold} and returns how many rows were deleted. */
+    int purgePublishedBefore(Instant threshold);
 }

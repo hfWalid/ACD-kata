@@ -199,8 +199,9 @@ Le `UPDATE` de la racine est envoyé **avant** le chargement des collections : u
 | Claim = `next_attempt_at = now() + bail` | un relais mort libère son lot à l'expiration |
 | Échec = `attempts + 1`, `last_error`, `next_attempt_at = now() + backoff` | reprise différée, plafonnée à 5 minutes |
 | Succès = `published_at` renseigné | la ligne ne sera plus réclamée |
+| Purge = `DELETE … WHERE published_at < now() - rétention` | la table reste bornée ; un non-publié n'est jamais supprimé |
 
-Les événements publiés restent dans la table : ils sont la trace de ce qui est parti et la base d'un futur archivage.
+Les événements publiés restent 7 jours par défaut (configurable), puis sont supprimés : assez pour enquêter après incident, borné pour ne pas transformer une file en archive.
 
 ## Règles de lecture
 

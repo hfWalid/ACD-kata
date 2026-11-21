@@ -1,6 +1,6 @@
 # Séquences
 
-Huit parcours qui expliquent le comportement réel.
+Neuf parcours qui expliquent le comportement réel.
 
 ## 1. Créer un brouillon depuis l'interface
 
@@ -235,7 +235,29 @@ sequenceDiagram
   end
 ```
 
-## 8. Traduire une erreur en problème HTTP
+## 8. Purger les événements publiés
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as Planificateur
+  participant P as OutboxPurge
+  participant O as EventOutbox
+  participant DB as PostgreSQL
+  participant M as Micrometer
+
+  S->>P: purge()
+  P->>P: seuil = maintenant - rétention
+  P->>O: purgePublishedBefore(seuil)
+  O->>DB: DELETE ... WHERE published_at IS NOT NULL AND published_at < seuil
+  DB-->>O: nombre de lignes
+  O-->>P: supprimées
+  P-->>S: supprimées
+  S->>M: acd.outbox.purged += supprimées
+  Note over S: un événement non publié<br/>n'est jamais supprimé
+```
+
+## 9. Traduire une erreur en problème HTTP
 
 ```mermaid
 sequenceDiagram

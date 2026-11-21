@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -69,6 +70,9 @@ class ReviewTaskConsumerIT {
     @Autowired
     ObjectMapper json;
 
+    @Autowired
+    TestRestTemplate http;
+
     @Test
     void opensOneTaskPerSubmissionClosesItOnceAndSurvivesAReplayAndAGarbagePayload() throws Exception {
         var submission = event(UUID.randomUUID(), 1, "SUBMITTED", "2026-11-18T10:00:00Z");
@@ -93,6 +97,11 @@ class ReviewTaskConsumerIT {
         send(event(UUID.randomUUID(), 2, "SUBMITTED", "2026-11-18T10:30:00Z"));
         Thread.sleep(1500);
         assertThat(count("SELECT count(*) FROM review.review_tasks")).isEqualTo(1);
+
+        // The read endpoint exposes the context without any write path.
+        var tasks = http.getForObject("/api/review-tasks?state=APPROVED", String.class);
+        assertThat(tasks).contains("\"state\":\"APPROVED\"").contains(DOCUMENT_ID.toString());
+        assertThat(http.getForObject("/api/review-tasks?state=PENDING", String.class)).isEqualTo("[]");
 
         // A payload this service cannot read is not retried forever: it goes to the DLT.
         send("{\"schemaVersion\": 2, \"eventId\": \"" + UUID.randomUUID() + "\"}");

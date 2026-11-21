@@ -11,6 +11,10 @@
 - **Contexte review.** `review-service` consomme le topic, ouvre une tâche à la soumission, la clôt à l'approbation ou au rejet, et expose `GET /api/review-tasks?state=PENDING`. Base : `review_inbox`, `review_documents`, `review_tasks`.
 - **Déduplication.** Deux gardes SQL indépendantes : identifiant d'événement déjà traité, et version inférieure à la dernière appliquée. Un rejeu, y compris hors ordre, ne change rien.
 - **Erreurs.** Deux tentatives puis `<topic>.DLT` sur la même partition ; un message dont le contrat n'est pas lisible va directement en `DLT`.
+- **Observation.** Jauges `acd.outbox.pending` et `acd.outbox.failed` sur `/actuator/prometheus`, compteurs `acd.outbox.published` et `acd.outbox.purged`. Un retard de broker ou un relais arrêté deviennent visibles sans requête SQL.
+- **Rétention.** Purge horaire des événements publiés au-delà de 7 jours (`acd.outbox.purge.*`) ; un événement non publié n'est jamais supprimé.
+- **Contrat piloté par le consommateur.** `contracts/events/expectations/` contient les attentes du consommateur (charge utile + effet attendu) ; le consommateur les joue, le producteur les rejoue à travers son domaine et son sérialiseur (`EventContractCompatibilityTest`). Renommer un champ casse la vérification côté producteur.
+- **Relais concurrents.** Deux relais sur la même base publient vingt événements sans aucun doublon (`twoRelaysNeverPublishTheSameEventTwice`).
 - **Infra locale.** Kafka 3.9.1 (KRaft, un nœud) dans `docker-compose.yml`, `make infra-up` attend sa santé, `make review-run` démarre le consommateur.
 
 ## Décisions
@@ -24,18 +28,19 @@
 
 ## Limites assumées
 
-- Kafka est **optionnel** : sans broker, `contribution-service` fonctionne et accumule les événements ; le retard est visible par `attempts` et `last_error`, pas par une métrique dédiée.
+- Kafka est **optionnel** : sans broker, `contribution-service` fonctionne et accumule les événements ; le retard est désormais lisible sur la jauge `acd.outbox.pending` et les refus sur `acd.outbox.failed`.
 - Un seul ordonnanceur par instance et un topic à partitions multiples : le débit reste celui d'un relais par instance. Le `SKIP LOCKED` rend plusieurs instances correctes, mais rien ne mesure la répartition.
 - Pas de compaction ni de rétention configurée : les topics utilisent les réglages par défaut du broker de test.
 - Le service de revue ne décide pas et n'écrit pas dans le document : approuver reste une action de `contribution-service`.
 - Le relais publie séquentiellement dans un lot : un broker lent allonge le lot au lieu d'être parallélisé.
-- Les lignes publiées restent dans `outbox_events` sans purge : la table est la trace de ce qui est parti, un archivage reste à définir.
-- Pas de tests Cypress de bout en bout (S9) ni de contrat Pact : le contrat est vérifié par fichier, pas par interaction entre services.
+- La purge supprime les traces après 7 jours : au-delà, il ne reste que les logs et Kafka pour reconstituer ce qui est parti.
+- Pas de broker Pact ni de registre de schémas centralisé : les attentes sont des fichiers versionnés dans le dépôt, vérifiés des deux côtés. Un troisième consommateur demanderait de généraliser l'outillage.
+- Pas de tests Cypress de bout en bout (S9).
 
 ## Vérification
 
 ```sh
-./mvnw verify          # 162 tests backend, dont Kafka et PostgreSQL via Testcontainers
+./mvnw verify          # 171 tests backend, dont Kafka et PostgreSQL via Testcontainers
 make infra-up          # PostgreSQL + Kafka
 make backend-run       # 127.0.0.1:8081
 make review-run        # 127.0.0.1:8082
@@ -44,12 +49,17 @@ make review-run        # 127.0.0.1:8082
 | Niveau | Test | Ce qu'il prouve |
 |---|---|---|
 | Application | `OutboxRelayTest` (9) | publication par lot, bail, backoff plafonné, message d'erreur tronqué |
+| Application | `OutboxPurgeTest` | seuil de purge calculé depuis la rétention |
 | Application | `DocumentCommandServiceTest` | un événement par mutation, aucun si l'écriture échoue ou si le domaine refuse |
-| Persistance | `JdbcEventOutboxIT` (7) | atomicité réelle, unicité par version, claim unique puis reprise après expiration du bail, `SKIP LOCKED` |
+| Persistance | `JdbcEventOutboxIT` (9) | atomicité réelle, unicité par version, claim unique puis reprise après expiration du bail, `SKIP LOCKED`, compteurs et purge, deux relais concurrents |
+| Messagerie | `EventContractCompatibilityTest` | le producteur émet tout ce que le consommateur déclare attendre |
+| Consommateur | `ConsumerContractTest` (4) | chaque attente publiée produit l'effet annoncé |
 | Messagerie | `DocumentLifecycleEventJsonTest` | format identique au contrat versionné, échappement du texte libre |
 | Messagerie | `KafkaEventPublisherIT` (2) | livraison réelle, clé, en-têtes, ordre par document et par partition |
-| Bout en bout | `OutboxPublicationIT` | HTTP → outbox → relais → Kafka, aucun événement pour une mutation refusée |
+| Bout en bout | `OutboxPublicationIT` | HTTP → outbox → relais → Kafka, aucun événement pour une mutation refusée, jauges `pending`/`failed` cohérentes |
 | Consommateur | `ReviewServiceTest` (6) | soumission, décision, doublon, événement périmé, action sans effet |
 | Consommateur | `ReviewTaskConsumerIT` | une tâche par soumission, clôture unique, rejeu sans effet, `DLT` |
 
 Parcours local exécuté : création, soumission, début de revue, approbation d'un document, puis deux rejeux du même identifiant d'événement. Résultat observé : 6 messages sur le topic, 4 lignes d'inbox, une seule tâche, passée de `PENDING` à `APPROVED` avec `decidedBy = relecteur`.
+
+Observation et rétention vérifiées sur l'application réelle, avec `acd.outbox.purge.retention=1s` : `acd_outbox_pending 1.0` immédiatement après la mutation, puis `acd_outbox_pending 0.0`, `acd_outbox_purged_total 5.0` et `outbox_events` revenue à 0 ligne. En configuration par défaut, la purge passe toutes les heures avec une rétention de 7 jours.

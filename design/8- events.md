@@ -49,8 +49,44 @@ Ajouter un champ, en renommer un ou en retirer un change la version et le topic.
 | Livraison au moins une fois | échec → `attempts`, backoff plafonné | `OutboxRelayTest` |
 | Rejeu sans effet | inbox + garde de version | `ReviewTaskConsumerIT` |
 | Message illisible non bloquant | `DLT` immédiate pour un contrat non supporté | `ReviewTaskConsumerIT` |
+| Deux relais en parallèle | chacun publie des événements distincts | `twoRelaysNeverPublishTheSameEventTwice` |
+| La table ne grossit pas sans fin | purge des événements publiés hors rétention | `reportsPendingAndFailedCountsAndPurgesOnlyPublishedEvents…` |
 
 **Ce qui n'est pas garanti** : exactly-once de bout en bout. Un événement peut être publié deux fois ; c'est le consommateur qui rend la répétition inoffensive.
+
+## Contrat piloté par le consommateur
+
+Le consommateur publie ses attentes dans [`contracts/events/expectations/`](../contracts/events/expectations) : un fichier par comportement, avec la charge utile attendue et l'effet attendu (`OPEN_TASK`, `DECIDE`, `IGNORE`, `REJECT`).
+
+| Côté | Test | Ce qu'il fait |
+|---|---|---|
+| Consommateur | `ConsumerContractTest` | lit chaque attente, la passe au vrai parseur et au vrai service, vérifie l'effet déclaré |
+| Producteur | `EventContractCompatibilityTest` | rejoue chaque attente à travers son propre domaine et son sérialiseur, vérifie que le message émis porte les champs déclarés |
+
+Renommer un champ côté producteur casse la vérification, pas le consommateur : la compatibilité est prouvée avant le déploiement, pas découverte en production. Les attentes sans scénario producteur (schéma inconnu, événement périmé) ne concernent que le consommateur.
+
+## Observation
+
+| Métrique | Type | Signification |
+|---|---|---|
+| `acd.outbox.pending` | jauge | événements écrits, non publiés |
+| `acd.outbox.failed` | jauge | non publiés après au moins un échec |
+| `acd.outbox.published` | compteur | événements acceptés par le broker |
+| `acd.outbox.purged` | compteur | événements supprimés après rétention |
+
+Un `pending` qui monte alors que `failed` reste à zéro indique un relais à l'arrêt ; les deux qui montent indiquent un broker qui refuse. Sans ces jauges, une panne Kafka serait invisible : c'était la faiblesse du premier jet.
+
+## Rétention
+
+```mermaid
+flowchart LR
+  P["Événement publié<br/>published_at renseigné"] --> W{"plus vieux que la rétention ?"}
+  W -->|non| G["Conservé, aucune republication possible"]
+  W -->|oui| D["Supprimé, compteur purged"]
+  N["Événement non publié"] --> K["Jamais purgé, quel que soit son âge"]
+```
+
+Rétention par défaut : 7 jours, purge horaire (`acd.outbox.purge.*`). Un événement non publié n'est jamais supprimé — ce serait perdre une mutation.
 
 ## Déduplication
 
@@ -74,7 +110,8 @@ stateDiagram-v2
   Reclame --> Publie : accusé du broker
   Reclame --> EnAttente : échec, attempts + 1, backoff
   Reclame --> Reclame : crash du relais, bail expiré
-  Publie --> [*]
+  Publie --> Conserve : trace de ce qui est parti
+  Conserve --> [*] : purge après rétention
 ```
 
 ## Pannes
@@ -89,4 +126,4 @@ stateDiagram-v2
 
 ## Hors périmètre S8
 
-Exactly-once, compaction, rétention configurée, registre de schémas, tests de contrat entre services, saga. Les raisons sont dans [la fiche S8](../docs/phases/S8-events.md).
+Exactly-once, compaction et rétention des topics Kafka, registre de schémas centralisé, broker Pact, saga. Les raisons sont dans [la fiche S8](../docs/phases/S8-events.md).

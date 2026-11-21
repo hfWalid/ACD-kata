@@ -67,6 +67,11 @@ acd:
       lease: 30s
       base-backoff: 1s
       max-backoff: 5m
+    purge:
+      enabled: ${OUTBOX_PURGE_ENABLED:true}
+      interval: 1h
+      initial-delay: 5m
+      retention: 7d
 
 springdoc:
   api-docs:

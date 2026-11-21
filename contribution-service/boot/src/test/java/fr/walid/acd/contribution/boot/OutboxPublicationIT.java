@@ -9,6 +9,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
@@ -42,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The relay is triggered by hand so the test never races the scheduler.
  */
 @Testcontainers
+@AutoConfigureObservability(tracing = false)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "acd.outbox.relay.enabled=false",
         "acd.events.topic=acd.document.lifecycle.it",
@@ -84,10 +86,13 @@ class OutboxPublicationIT {
 
         // Nothing reached the broker before the relay ran: the event waited for a commit.
         assertThat(pendingEvents()).isEqualTo(1);
+        assertThat(prometheus()).contains("acd_outbox_pending 1.0");
         assertThat(consume(2, Duration.ofSeconds(2))).isEmpty();
 
         assertThat(relay.relay(10)).isEqualTo(1);
         assertThat(pendingEvents()).isZero();
+        assertThat(prometheus()).contains("acd_outbox_pending 0.0");
+        assertThat(prometheus()).contains("acd_outbox_failed 0.0");
 
         var submitted = transition(id, "submit", 1);
         assertThat(submitted.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -124,6 +129,10 @@ class OutboxPublicationIT {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-User", "walid");
         return headers;
+    }
+
+    private String prometheus() {
+        return http.getForObject("/actuator/prometheus", String.class);
     }
 
     private int pendingEvents() {

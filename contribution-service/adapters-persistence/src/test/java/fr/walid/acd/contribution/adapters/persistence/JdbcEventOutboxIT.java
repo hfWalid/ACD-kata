@@ -2,6 +2,8 @@ package fr.walid.acd.contribution.adapters.persistence;
 
 import fr.walid.acd.contribution.application.event.DocumentLifecycleEvent;
 import fr.walid.acd.contribution.application.port.out.DocumentRepository;
+import fr.walid.acd.contribution.application.port.out.EventPublisher;
+import fr.walid.acd.contribution.application.service.OutboxRelay;
 import fr.walid.acd.contribution.application.port.out.EventOutbox;
 import fr.walid.acd.contribution.application.port.out.Transactions;
 import fr.walid.acd.contribution.domain.Actor;
@@ -27,13 +29,18 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -214,6 +221,83 @@ class JdbcEventOutboxIT {
         assertThat(stored.version()).isEqualTo(1);
         assertThat(stored.title()).isEqualTo("Document");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_events", Integer.class)).isZero();
+    }
+
+    @Test
+    void reportsPendingAndFailedCountsAndPurgesOnlyPublishedEventsOlderThanTheWindow() {
+        var publishedNow = eventFor(UUID.randomUUID());
+        var publishedLongAgo = eventFor(UUID.randomUUID());
+        var stillFailing = eventFor(UUID.randomUUID());
+        transactions.inTransaction(() -> {
+            outbox.append(List.of(publishedNow, publishedLongAgo, stillFailing));
+            return null;
+        });
+        outbox.markPublished(List.of(publishedNow.eventId()), Instant.now());
+        outbox.markPublished(List.of(publishedLongAgo.eventId()), Instant.now().minus(Duration.ofDays(10)));
+        outbox.markFailed(stillFailing.eventId(), "broker down", Instant.now().plusSeconds(30));
+
+        assertThat(outbox.countPending()).isEqualTo(1);
+        assertThat(outbox.countFailed()).isEqualTo(1);
+        assertThat(outbox.purgePublishedBefore(Instant.now().minus(Duration.ofDays(7)))).isEqualTo(1);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM outbox_events", Integer.class)).isEqualTo(2);
+        assertThat(outbox.countPending()).isEqualTo(1);
+    }
+
+    @Test
+    void twoRelaysNeverPublishTheSameEventTwice() throws Exception {
+        var events = IntStream.rangeClosed(1, 20).mapToObj(version -> eventFor(UUID.randomUUID())).toList();
+        transactions.inTransaction(() -> {
+            outbox.append(events);
+            return null;
+        });
+        var publisher = new CountingPublisher();
+        var relay = new OutboxRelay(outbox, publisher, Clock.systemUTC(), LEASE, Duration.ofMillis(5),
+                Duration.ofMillis(50));
+        var start = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var running = IntStream.range(0, 2)
+                    .mapToObj(worker -> pool.submit(() -> {
+                        awaitQuietly(start);
+                        for (int round = 0; round < 20; round++) {
+                            relay.relay(5);
+                            Thread.sleep(5);
+                        }
+                        return null;
+                    }))
+                    .toList();
+            start.countDown();
+            for (var worker : running) {
+                worker.get(30, TimeUnit.SECONDS);
+            }
+        }
+
+        assertThat(publisher.total()).isEqualTo(20);
+        assertThat(publisher.maxPublishesPerEvent()).isEqualTo(1);
+        assertThat(outbox.countPending()).isZero();
+    }
+
+    private static DocumentLifecycleEvent eventFor(UUID documentId) {
+        return new DocumentLifecycleEvent(UUID.randomUUID(), DocumentLifecycleEvent.TYPE,
+                DocumentLifecycleEvent.SCHEMA_VERSION, new DocumentId(documentId), 1,
+                DocumentAction.CREATED, new DocumentStatus.Draft(), "Document", AUTHOR, CREATED_AT);
+    }
+
+    private static final class CountingPublisher implements EventPublisher {
+        private final Map<UUID, AtomicInteger> counts = new ConcurrentHashMap<>();
+
+        @Override
+        public void publish(DocumentLifecycleEvent event) {
+            counts.computeIfAbsent(event.eventId(), id -> new AtomicInteger()).incrementAndGet();
+        }
+
+        int total() {
+            return counts.values().stream().mapToInt(AtomicInteger::get).sum();
+        }
+
+        int maxPublishesPerEvent() {
+            return counts.values().stream().mapToInt(AtomicInteger::get).max().orElse(0);
+        }
     }
 
     private static void awaitQuietly(CountDownLatch latch) {

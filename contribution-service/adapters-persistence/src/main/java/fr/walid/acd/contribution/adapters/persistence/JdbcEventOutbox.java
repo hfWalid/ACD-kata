@@ -52,6 +52,15 @@ public class JdbcEventOutbox implements EventOutbox {
     private static final String MARK_FAILED =
             "UPDATE outbox_events SET attempts = attempts + 1, last_error = ?, next_attempt_at = ? WHERE id = ?";
 
+    private static final String COUNT_PENDING =
+            "SELECT count(*) FROM outbox_events WHERE published_at IS NULL";
+
+    private static final String COUNT_FAILED =
+            "SELECT count(*) FROM outbox_events WHERE published_at IS NULL AND attempts > 0";
+
+    private static final String PURGE_PUBLISHED =
+            "DELETE FROM outbox_events WHERE published_at IS NOT NULL AND published_at < ?";
+
     private static final RowMapper<OutboxEntry> ENTRY = JdbcEventOutbox::read;
 
     private final JdbcTemplate jdbc;
@@ -94,6 +103,26 @@ public class JdbcEventOutbox implements EventOutbox {
     @Override
     public void markFailed(UUID eventId, String error, Instant nextAttemptAt) {
         jdbc.update(MARK_FAILED, error, Timestamp.from(nextAttemptAt), eventId);
+    }
+
+    @Override
+    public long countPending() {
+        return count(COUNT_PENDING);
+    }
+
+    @Override
+    public long countFailed() {
+        return count(COUNT_FAILED);
+    }
+
+    @Override
+    public int purgePublishedBefore(Instant threshold) {
+        return jdbc.update(PURGE_PUBLISHED, Timestamp.from(threshold));
+    }
+
+    private long count(String sql) {
+        var counted = jdbc.queryForObject(sql, Long.class);
+        return counted == null ? 0L : counted;
     }
 
     private static OutboxEntry read(ResultSet row, int index) throws SQLException {

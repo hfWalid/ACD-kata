@@ -268,3 +268,23 @@ Erreurs corrigées en route, toutes détectées par l'exécution :
 - Un ordonnanceur par instance : plusieurs instances sont correctes grâce au claim, mais la répartition n'est pas mesurée.
 - Pas de métrique de retard d'outbox publiée : `attempts` et `last_error` restent la seule trace d'un broker indisponible.
 - Rétention et compaction des topics laissées aux réglages par défaut du broker de test.
+
+### Clôture S8 — observation, rétention, contrat croisé, relais concurrents, 21 novembre 2026
+
+Les quatre limites qui restaient après le premier jet ont été traitées, avec leurs tests.
+
+| Ajout | Preuve |
+|---|---|
+| Jauges `acd.outbox.pending` et `acd.outbox.failed`, compteurs `published` et `purged` | `OutboxPublicationIT` lit `/actuator/prometheus` : `pending 1.0` après la mutation, `0.0` après le relais, `failed 0.0` |
+| Purge des événements publiés hors rétention (7 jours, horaire) | `reportsPendingAndFailedCountsAndPurgesOnlyPublishedEvents…` ; parcours réel avec rétention de 1 s : `acd_outbox_purged_total 5.0`, table revenue à 0 |
+| Contrat piloté par le consommateur | `ConsumerContractTest` (4 attentes) et `EventContractCompatibilityTest` (2 attentes rejouées par le producteur) |
+| Deux relais concurrents sans doublon | `twoRelaysNeverPublishTheSameEventTwice` : 20 événements, 20 publications, aucune deux fois |
+
+Erreurs corrigées en route :
+
+- `/actuator/prometheus` répondait `404` dans le test de bout en bout : `@SpringBootTest` désactive les auto-configurations d'observabilité sauf si le test porte `@AutoConfigureObservability`. Le test l'a reçu.
+- Le test de contrat côté producteur lisait les `steps` d'un tableau JSON avec `Stream.of(...)`, ce qui produisait la chaîne vide : itération explicite des éléments.
+- `ConsumerContractTest` vivait hors du paquet de l'adaptateur et ne pouvait pas accéder au parseur : déplacé dans `fr.walid.acd.review.adapter`.
+- Deux assertions de bail étaient fausses dans le test : passer un bail déjà expiré ne rend pas une ligne due. Le test simule désormais l'expiration en base.
+
+Vérification : `make verify` **exit 0**, **171 tests backend** (18 domaine, 34 application, 50 MVC, 26 persistance, 9 messagerie, 18 boot, 16 review), 40 tests web, 8 tests de structure, Prettier conforme, build réussi. Garde-fou du contrat vérifié par négation : renommer un champ attendu par le consommateur fait échouer le test producteur.
