@@ -91,7 +91,7 @@ class KafkaEventPublisherTest {
     }
 
     private static DocumentLifecycleEvent event() {
-        return new DocumentLifecycleEvent(EVENT_ID, DocumentLifecycleEvent.TYPE,
+        return new DocumentLifecycleEvent(EVENT_ID, DocumentLifecycleEvent.EVENT_TYPE,
                 DocumentLifecycleEvent.SCHEMA_VERSION, new DocumentId(DOCUMENT_ID), 2, DocumentAction.SUBMITTED,
                 new DocumentStatus.Submitted(), "Contrat d'exploitation", new Actor("walid"),
                 Instant.parse("2026-11-18T10:00:00Z"));

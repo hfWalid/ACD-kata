@@ -2,9 +2,9 @@
 
 Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine détaillé et l'architecture sont des choix pédagogiques ; ils ne décrivent pas l'architecture interne d'EDF.
 
-**Tranche courante : S1–S8 — domaine, application, PostgreSQL, REST, interface Angular, outbox et Kafka — plus l'extension E1, l'import de fichiers.** Les résultats de vérification sont consignés dans le journal. S9 et les incréments suivants ne sont pas commencés.
+**Tranche courante : S1–S10 — domaine, application, PostgreSQL, REST, interface Angular, outbox et Kafka, parcours navigateur et analyse statique — plus l'extension E1, l'import de fichiers.** Les résultats de vérification sont consignés dans le journal. S11 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **228 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI et contrat d'événement comparés, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, parcours navigateur sur S5–S7, parcours Kafka réel sur S8 et import réel sur E1.
+Validation locale : **228 tests backend, 40 tests web, 9 tests de structure et 8 parcours navigateur réussis, aucun ignoré**, contrat OpenAPI et contrat d'événement comparés, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, parcours Kafka réel sur S8, import réel sur E1, huit parcours Cypress sur la pile complète, analyse SonarQube sans défaut ouvert.
 
 ## Ce qui est construit
 
@@ -15,12 +15,14 @@ Validation locale : **228 tests backend et 40 tests web réussis, aucun ignoré*
 - API REST, validation, `ProblemDetail`, pagination par fenêtre, contrat OpenAPI exporté et endpoints Actuator/Micrometer.
 - Tests unitaires, MVC et d'intégration avec PostgreSQL Testcontainers.
 - Interface Angular 21 standalone, zoneless et stricte : client HTTP typé, routes paresseuses, états de chargement, d'erreur et de vide.
-- Grille AG Grid Community 36 en *infinite row model* : une requête par bloc de 25 lignes sur le contrat `[startRow, endRow[`, tri et filtres serveur.
+- Grille AG Grid Community 36 en _infinite row model_ : une requête par bloc de 25 lignes sur le contrat `[startRow, endRow[`, tri et filtres serveur.
 - Formulaire réactif (Tailwind 3) : création, correction, actions légales selon le statut, erreurs du domaine affichées telles quelles.
 - Outbox transactionnel : un événement par mutation, écrit avec elle, publié par un relais qui réclame des lots (`FOR UPDATE SKIP LOCKED`) et applique un backoff.
 - Contrat d'événement versionné `document.lifecycle.changed` v1, clé par document, publié sur Kafka avec accusé du broker.
 - Contexte review : second service qui consomme ce topic, ouvre une tâche à la soumission, la clôt à la décision, et ignore un rejeu par deux gardes SQL (inbox et version).
 - Import de fichiers (E1) : lecture CSV ou JSON, mapping Jolt versionné dans `contracts/import`, import en brouillon, soumis ou approuvé **par les commandes existantes**, idempotence par référence source, rapport ligne par ligne et mode simulation.
+- Parcours de bout en bout (S9) : Cypress 16 sur navigateur réel, quatre specs pour la contribution, la décision, la grille et le conflit de version ; données isolées par jeton, aucune attente arbitraire, sélecteurs par rôle et par texte.
+- Analyse statique (S10) : SonarQube 26 en profil Compose, `sonar-project.properties` alimenté par les rapports JaCoCo, lcov et JUnit déjà produits, porte de qualité bloquante en CI, contrôles de dépendances par `mvn dependency:analyze` et `npm audit`.
 
 Le domaine n'a aucune dépendance de production externe au JDK. L'application dépend du domaine ; les adapters adaptent les frontières et `boot` assure le câblage. Le contexte review est un service séparé : il possède la tâche, jamais le statut du document.
 
@@ -40,6 +42,9 @@ Commandes ciblées :
 make backend-unit-test
 make backend-verify
 make web-verify
+make e2e-run        # parcours Cypress : backend et serveur de développement déjà lancés
+make quality-up     # serveur SonarQube local (profil Compose dédié)
+make quality-scan   # analyse après make quality-token
 ```
 
 `backend-unit-test` exécute les tests unitaires/MVC et les contrôles d'architecture sans base. `backend-verify` ajoute les tests `*IT` via Failsafe, sur des bases PostgreSQL jetables créées automatiquement par Testcontainers. Il ne se connecte pas à la base Compose locale. Docker indisponible fait échouer les tests d'intégration.
@@ -144,6 +149,31 @@ make seed-documents
 
 La commande écrit directement en SQL des agrégats cohérents (version = nombre d'entrées d'audit) et peut être rejouée sans doublon. Elle ne touche que la base Compose locale.
 
+## Parcours navigateur (S9)
+
+Cypress traverse le navigateur, le proxy, le contrat REST, le domaine et PostgreSQL. Il exige donc **deux serveurs déjà lancés** : le backend (`make backend-run`) et le serveur de développement (`npm --prefix web start`).
+
+```sh
+make e2e-run
+```
+
+La commande vérifie que les deux serveurs répondent, puis exécute les quatre specs (huit tests, cinq secondes). Chaque exécution crée ses propres documents préfixés par un jeton et filtre la grille dessus : la suite est rejouable sur une base contenant les 10 000 documents de démonstration, sans rien supprimer. Le [parcours d'apprentissage Cypress](docs/cypress-walkthrough.md) explique le modèle mental, le code des specs, les pièges rencontrés et la méthode de débogage ; les décisions sont dans la [fiche S9](docs/phases/S9-e2e.md).
+
+Le mode interactif (`npm --prefix web run e2e`) rejoue chaque commande pas à pas dans le navigateur.
+
+## Qualité (S10)
+
+```sh
+./mvnw verify                 # rapports JaCoCo XML et JUnit XML
+npm --prefix web run coverage # lcov du front
+make quality-up               # SonarQube 26 sur http://127.0.0.1:9100
+make quality-token            # attend le démarrage, crée le jeton dans .env.local
+make quality-scan             # analyse le dépôt entier
+make quality-deps             # dépendances Maven et avis npm
+```
+
+Les rapports de couverture et d'exécution sont **produits par le build** puis importés : SonarQube n'exécute aucun test. Le mot de passe administrateur et le jeton restent dans `.env.local` ; aucun secret n'est versionné. La [fiche S10](docs/phases/S10-quality.md) donne les mesures relevées et les limites ; le [parcours SonarQube](docs/sonarqube-walkthrough.md) explique le montage, la lecture du tableau de bord et ce que la première analyse a trouvé.
+
 ## Contrat et métriques
 
 - `/swagger-ui/index.html` : interface Swagger pour exécuter les requêtes.
@@ -168,4 +198,4 @@ Les [ADR](docs/adr/0003-application-read-model-and-atomic-ui.md) portent les dé
 
 Lire aussi la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), celle de la [grille](docs/phases/S6-grid.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
 
-La CI GitLab est **préparée, sans exécution distante observée**. Elle suppose `acd-kata` à la racine du dépôt GitLab et un runner Docker configuré pour le service Docker-in-Docker privilégié. Le dépôt parent KATAs, ses fichiers et ses réglages ne sont pas modifiés. Aucun push, déploiement ou provisionnement cloud n'est effectué.
+La CI GitLab est **préparée, sans exécution distante observée**. Le job `sonar-analysis` ne s'exécute que si `SONAR_HOST_URL` et `SONAR_TOKEN` sont définis ; les parcours Cypress restent locaux tant que le packaging de S11 ne fournit pas un job réunissant Java, Node et un navigateur. Elle suppose `acd-kata` à la racine du dépôt GitLab et un runner Docker configuré pour le service Docker-in-Docker privilégié. Le dépôt parent KATAs, ses fichiers et ses réglages ne sont pas modifiés. Aucun push, déploiement ou provisionnement cloud n'est effectué.

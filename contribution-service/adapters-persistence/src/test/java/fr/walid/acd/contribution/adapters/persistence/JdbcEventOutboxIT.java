@@ -96,7 +96,7 @@ class JdbcEventOutboxIT {
         });
 
         var row = jdbc.queryForMap("SELECT * FROM outbox_events");
-        assertThat(row).containsEntry("event_type", DocumentLifecycleEvent.TYPE);
+        assertThat(row).containsEntry("event_type", DocumentLifecycleEvent.EVENT_TYPE);
         assertThat(row).containsEntry("schema_version", 1);
         assertThat(row).containsEntry("document_id", draft.id().value());
         assertThat(row).containsEntry("business_version", 1L);
@@ -306,7 +306,7 @@ class JdbcEventOutboxIT {
     }
 
     private static DocumentLifecycleEvent eventFor(UUID documentId) {
-        return new DocumentLifecycleEvent(UUID.randomUUID(), DocumentLifecycleEvent.TYPE,
+        return new DocumentLifecycleEvent(UUID.randomUUID(), DocumentLifecycleEvent.EVENT_TYPE,
                 DocumentLifecycleEvent.SCHEMA_VERSION, new DocumentId(documentId), 1,
                 DocumentAction.CREATED, new DocumentStatus.Draft(), "Document", AUTHOR, CREATED_AT);
     }

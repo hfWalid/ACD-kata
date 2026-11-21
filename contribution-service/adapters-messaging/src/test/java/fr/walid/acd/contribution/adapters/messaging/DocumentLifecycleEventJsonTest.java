@@ -26,7 +26,7 @@ class DocumentLifecycleEventJsonTest {
     void writesExactlyTheFieldsOfTheVersionedContract() throws IOException {
         var event = new DocumentLifecycleEvent(
                 UUID.fromString("2c1f5f0e-8a6c-4b2a-9a3f-0f3c7b1d5e11"),
-                DocumentLifecycleEvent.TYPE,
+                DocumentLifecycleEvent.EVENT_TYPE,
                 DocumentLifecycleEvent.SCHEMA_VERSION,
                 new DocumentId(UUID.fromString("5f476a52-0145-4e1e-9366-d61b8e529ff4")),
                 2,
@@ -49,7 +49,7 @@ class DocumentLifecycleEventJsonTest {
     void escapesFreeTextSoAConsumerCanAlwaysParseIt() {
         var event = new DocumentLifecycleEvent(
                 UUID.fromString("2c1f5f0e-8a6c-4b2a-9a3f-0f3c7b1d5e11"),
-                DocumentLifecycleEvent.TYPE,
+                DocumentLifecycleEvent.EVENT_TYPE,
                 DocumentLifecycleEvent.SCHEMA_VERSION,
                 new DocumentId(UUID.fromString("5f476a52-0145-4e1e-9366-d61b8e529ff4")),
                 1,

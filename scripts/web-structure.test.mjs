@@ -9,13 +9,9 @@ import { fileURLToPath } from "node:url";
  * rules. It reads the sources instead of instantiating them: a misplaced import fails the build
  * here rather than surprising a reviewer.
  */
-const APP = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "web",
-  "src",
-  "app",
-);
+const WEB = resolve(dirname(fileURLToPath(import.meta.url)), "..", "web");
+const APP = resolve(WEB, "src", "app");
+const E2E = resolve(WEB, "cypress", "e2e");
 const SUFFIXES = ["", ".ts", ".html", "/index.ts"];
 
 function sources(directory = APP) {
@@ -85,6 +81,31 @@ const rules = [
   ],
   ["shared ignores the feature", "shared/", ["features/", "app."]],
 ];
+
+// The end-to-end suite talks to the application like a user and through its HTTP API. Importing
+// application code would make it white-box: the test would break on a refactor it should survive,
+// and it could no longer prove that the page works on its own.
+describe("cypress specs stay black-box", () => {
+  it("imports nothing from the application sources", () => {
+    const offenders = readdirSync(E2E)
+      .filter((entry) => entry.endsWith(".cy.ts"))
+      .flatMap((entry) => {
+        const specifier = readFileSync(join(E2E, entry), "utf8").match(
+          /from\s+['"]([^'"]+)['"]/g,
+        );
+        return (specifier ?? [])
+          .map((line) => line.replace(/from\s+['"]|['"]/g, ""))
+          .filter(
+            (path) =>
+              path.includes("src/app") ||
+              (path.startsWith("..") && !path.startsWith("../support")),
+          )
+          .map((path) => `cypress/e2e/${entry} imports ${path}`);
+      });
+
+    assert.deepEqual(offenders, []);
+  });
+});
 
 describe("atomic structure of web/src/app", () => {
   for (const [name, prefix, forbidden] of rules) {

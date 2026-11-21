@@ -147,7 +147,7 @@ class OutboxRelayTest {
     }
 
     private static OutboxEntry entry(UUID id, int attempts) {
-        var event = new DocumentLifecycleEvent(id, DocumentLifecycleEvent.TYPE,
+        var event = new DocumentLifecycleEvent(id, DocumentLifecycleEvent.EVENT_TYPE,
                 DocumentLifecycleEvent.SCHEMA_VERSION, new DocumentId(UUID.randomUUID()), 1,
                 DocumentAction.CREATED, new DocumentStatus.Draft(), "Report", new Actor("walid"), NOW);
         return new OutboxEntry(id, event, attempts);

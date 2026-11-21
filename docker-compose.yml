@@ -51,5 +51,22 @@ services:
       retries: 12
       start_period: 10s
 
+  # Quality analysis server, started on demand: `make quality-up` (Compose profile "quality").
+  # The community edition keeps its data in an embedded database, which is fine for a local
+  # learning instance and explicitly not a production setup.
+  sonarqube:
+    image: sonarqube:26.11.0.134175-community
+    profiles: ["quality"]
+    environment:
+      # Docker on macOS cannot raise vm.max_map_count, which Elasticsearch checks at boot.
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    ports:
+      - "127.0.0.1:${SONAR_PORT:-9000}:9000"
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+
 volumes:
   contribution-postgres-data:
+  sonarqube-data:
+  sonarqube-logs:

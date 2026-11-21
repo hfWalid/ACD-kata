@@ -7,8 +7,11 @@
     "build": "ng build",
     "test": "ng test",
     "test:ci": "ng test --watch=false",
-    "format:check": "prettier --check src angular.json package.json tsconfig*.json tailwind.config.js proxy.conf.json .postcssrc.json",
-    "format": "prettier --write src angular.json package.json tsconfig*.json tailwind.config.js proxy.conf.json .postcssrc.json"
+    "format:check": "prettier --check src angular.json package.json tsconfig*.json tailwind.config.js proxy.conf.json .postcssrc.json cypress cypress.config.ts",
+    "format": "prettier --write src angular.json package.json tsconfig*.json tailwind.config.js proxy.conf.json .postcssrc.json cypress cypress.config.ts",
+    "e2e": "cypress open",
+    "e2e:ci": "cypress run",
+    "coverage": "ng test --watch=false --coverage --coverage-reporters=lcov --coverage-reporters=text-summary"
   },
   "private": true,
   "packageManager": "npm@11.17.0",
@@ -25,12 +28,14 @@
     "tslib": "2.9.1"
   },
   "devDependencies": {
-    "@angular/build": "21.2.26",
-    "@angular/cli": "21.2.26",
+    "@angular/build": "21.2.30",
+    "@angular/cli": "21.2.30",
     "@angular/compiler-cli": "21.2.26",
+    "@vitest/coverage-v8": "^4.1.12",
     "autoprefixer": "10.4.21",
+    "cypress": "^16.3.0",
     "jsdom": "28.1.0",
-    "postcss": "8.5.6",
+    "postcss": "8.5.33",
     "prettier": "3.10.1",
     "tailwindcss": "3.4.19",
     "typescript": "5.9.3",

@@ -30,7 +30,7 @@ class DocumentLifecycleEventTest {
         var event = DocumentLifecycleEvent.of(document, EVENT_ID);
 
         assertThat(event.eventId()).isEqualTo(EVENT_ID);
-        assertThat(event.type()).isEqualTo(DocumentLifecycleEvent.TYPE);
+        assertThat(event.type()).isEqualTo(DocumentLifecycleEvent.EVENT_TYPE);
         assertThat(event.schemaVersion()).isEqualTo(DocumentLifecycleEvent.SCHEMA_VERSION);
         assertThat(event.documentId()).isEqualTo(new DocumentId(DOCUMENT_ID));
         assertThat(event.documentVersion()).isEqualTo(2);
@@ -39,7 +39,7 @@ class DocumentLifecycleEventTest {
         assertThat(event.title()).isEqualTo("Report");
         assertThat(event.actor()).isEqualTo(AUTHOR);
         assertThat(event.occurredAt()).isEqualTo(SUBMITTED_AT);
-        assertThat(DocumentLifecycleEvent.TYPE).isEqualTo("document.lifecycle.changed");
+        assertThat(DocumentLifecycleEvent.EVENT_TYPE).isEqualTo("document.lifecycle.changed");
         assertThat(DocumentLifecycleEvent.SCHEMA_VERSION).isEqualTo(1);
     }
 
@@ -52,7 +52,7 @@ class DocumentLifecycleEventTest {
 
     @Test
     void rejectsAVersionBelowTheFirstOne() {
-        assertThatThrownBy(() -> new DocumentLifecycleEvent(EVENT_ID, DocumentLifecycleEvent.TYPE,
+        assertThatThrownBy(() -> new DocumentLifecycleEvent(EVENT_ID, DocumentLifecycleEvent.EVENT_TYPE,
                 DocumentLifecycleEvent.SCHEMA_VERSION, new DocumentId(DOCUMENT_ID), 0,
                 DocumentAction.CREATED, new DocumentStatus.Draft(), "Report", AUTHOR, CREATED_AT))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -61,7 +61,7 @@ class DocumentLifecycleEventTest {
 
     @Test
     void rejectsASchemaVersionBelowTheFirstOne() {
-        assertThatThrownBy(() -> new DocumentLifecycleEvent(EVENT_ID, DocumentLifecycleEvent.TYPE, 0,
+        assertThatThrownBy(() -> new DocumentLifecycleEvent(EVENT_ID, DocumentLifecycleEvent.EVENT_TYPE, 0,
                 new DocumentId(DOCUMENT_ID), 1, DocumentAction.CREATED, new DocumentStatus.Draft(), "Report",
                 AUTHOR, CREATED_AT))
                 .isInstanceOf(IllegalArgumentException.class)

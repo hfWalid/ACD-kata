@@ -12,7 +12,7 @@ import java.util.UUID;
 
 /**
  * Integration event published after a document mutation. It is a contract read by other services:
- * field names, and the pair ({@link #TYPE}, {@code schemaVersion}), change only together with a new
+ * field names, and the pair ({@link #EVENT_TYPE}, {@code schemaVersion}), change only together with a new
  * version of the event. The outbox stores the version each row was recorded with, so a row written
  * before an upgrade is still published as the version it belongs to.
  */
@@ -28,7 +28,12 @@ public record DocumentLifecycleEvent(
         Actor actor,
         Instant occurredAt) {
 
-    public static final String TYPE = "document.lifecycle.changed";
+    /**
+     * Contract name of the event, also stored in the outbox {@code event_type} column. It is called
+     * {@code EVENT_TYPE} and not {@code TYPE} on purpose: next to the {@code type} field (the
+     * document transition), two names differing only by case read as a mistake.
+     */
+    public static final String EVENT_TYPE = "document.lifecycle.changed";
     public static final int SCHEMA_VERSION = 1;
 
     public DocumentLifecycleEvent {
@@ -54,7 +59,7 @@ public record DocumentLifecycleEvent(
     /** Builds the event of the mutation that produced this aggregate state. */
     public static DocumentLifecycleEvent of(Document document, UUID eventId) {
         var applied = document.auditTrail().getLast();
-        return new DocumentLifecycleEvent(eventId, TYPE, SCHEMA_VERSION, document.id(), document.version(),
+        return new DocumentLifecycleEvent(eventId, EVENT_TYPE, SCHEMA_VERSION, document.id(), document.version(),
                 applied.action(), document.status(), document.title(), applied.author(), applied.occurredAt());
     }
 

@@ -33,7 +33,7 @@ class OutboxEntryTest {
     }
 
     private static DocumentLifecycleEvent event() {
-        return new DocumentLifecycleEvent(ID, DocumentLifecycleEvent.TYPE, DocumentLifecycleEvent.SCHEMA_VERSION,
+        return new DocumentLifecycleEvent(ID, DocumentLifecycleEvent.EVENT_TYPE, DocumentLifecycleEvent.SCHEMA_VERSION,
                 new DocumentId(ID), 1, DocumentAction.CREATED, new DocumentStatus.Draft(), "Report",
                 new Actor("walid"), Instant.EPOCH);
     }

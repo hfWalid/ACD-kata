@@ -1,5 +1,6 @@
 stages:
   - verify
+  - quality
 
 workflow:
   rules:
@@ -33,8 +34,12 @@ backend-verify:
         - review-service/target/surefire-reports/TEST-*.xml
         - review-service/target/failsafe-reports/TEST-*.xml
     paths:
-      - contribution-service/domain/target/site/jacoco/
-      - contribution-service/application/target/site/jacoco/
+      - contribution-service/*/target/site/jacoco/
+      - review-service/target/site/jacoco/
+      - contribution-service/*/target/classes/
+      - contribution-service/*/target/test-classes/
+      - review-service/target/classes/
+      - review-service/target/test-classes/
 
 web-verify:
   stage: verify
@@ -49,14 +54,41 @@ web-verify:
     - node --test scripts/init-local-env.test.mjs
     - npm --prefix web ci --cache "$CI_PROJECT_DIR/.npm" --prefer-offline
     - npm --prefix web run format:check
-    - npm --prefix web run test:ci
+    # `coverage` runs the same tests and writes lcov for the quality job; running both would
+    # execute the suite twice for nothing.
+    - npm --prefix web run coverage
     - npm --prefix web run build
   artifacts:
     paths:
       - web/dist/
+      - web/coverage/acd-web/lcov.info
 
 compose-validate:
   stage: verify
   image: docker:29.6.2-cli
   script:
     - docker compose --env-file .env.example config --quiet
+
+# S10 — static analysis. Prepared, never executed remotely: the job only runs when the two
+# variables exist, so a repository without a SonarQube server keeps a green pipeline.
+# SONAR_HOST_URL is a normal CI/CD variable; SONAR_TOKEN must be masked and protected.
+sonar-analysis:
+  stage: quality
+  image: sonarsource/sonar-scanner-cli:12.4
+  needs:
+    - job: backend-verify
+      artifacts: true
+    - job: web-verify
+      artifacts: true
+  rules:
+    - if: '$SONAR_HOST_URL && $SONAR_TOKEN'
+  variables:
+    SONAR_USER_HOME: "$CI_PROJECT_DIR/.sonar"
+  cache:
+    key: sonar
+    paths:
+      - .sonar/cache/
+  script:
+    # The quality gate is the point of the job: without this flag the scan reports and exits 0
+    # whatever the gate decides, which turns the control into a decoration.
+    - sonar-scanner -Dsonar.qualitygate.wait=true

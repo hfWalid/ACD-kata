@@ -104,6 +104,10 @@ Tous les ports rendent des modèles applicatifs, jamais l'agrégat ([ADR 0003](.
 | L'import n'invente aucun état | modes vérifiés commande par commande dans `DocumentImportServiceTest` |
 | Rejouer un fichier ne crée rien | `JdbcDocumentSourceIndexIT`, `DocumentImportIT` |
 | L'ordre des versions d'un document est publié | `claimsTheEventsOfOneDocumentInVersionOrderEvenWhenTheyShareATimestamp` |
+| Chaque parcours métier fonctionne dans un vrai navigateur | `web/cypress/e2e/` (contribution, décision, grille, conflit) |
+| Un parcours reste boîte noire | `scripts/web-structure.test.mjs` interdit d'importer `src/app` depuis `cypress/e2e/` |
+| Aucun défaut statique ouvert | SonarQube, porte « Sonar way » bloquante dans le job CI conditionnel |
+| Aucun avis npm grave | `make quality-deps` (`npm audit --audit-level=high`) |
 
 ## Volume de tests
 
@@ -120,7 +124,8 @@ Tous les ports rendent des modèles applicatifs, jamais l'agrégat ([ADR 0003](.
 | Contexte review | 16 |
 | **Backend** | **228** |
 | Interface (Vitest) | 40 |
-| Structure de l'interface (Node) | 8 |
+| Structure de l'interface et des specs (Node) | 9 |
+| Parcours navigateur (Cypress, pile complète) | 8 |
 
 ## Exécution locale
 
@@ -133,6 +138,9 @@ flowchart LR
   K -->|"9092"| R["review-service<br/>8082"]
   R --> PG
   T["mvn verify"] -->|"Testcontainers"| PG2[("PostgreSQL jetable")]
+  Q["Cypress<br/>navigateur réel"] -->|"pilote"| B
+  Q -->|"prépare par l'API"| C
+  S["SonarQube<br/>127.0.0.1:9100"] -.->|"importe jacoco.xml,<br/>lcov.info, JUnit XML"| T
   T -->|"Testcontainers"| K2[["Kafka jetable"]]
 ```
 

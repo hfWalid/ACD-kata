@@ -337,3 +337,104 @@ tests web, 8 tests de structure, Prettier conforme, build réussi. Parcours rée
 `8 planifiés` sans écriture, import approuvé `8 importés`, huit documents `Approved` avec quatre
 entrées d'audit chacun, **huit tâches `APPROVED`** côté review après démarrage du consommateur,
 rejeu `0 importé / 8 déjà présents`.
+
+## S9 — parcours Cypress, 21 novembre 2026
+
+### Décisions
+
+- **Cypress 16 plutôt que Playwright** : le mode interactif (rejeu de chaque commande sur l'état du DOM)
+  est ce qui rend l'apprentissage autoportant ; le multi-onglets et le parallélisme de Playwright ne
+  servent pas ce kata.
+- **Préparer par l'API, agir par l'interface** : `cy.createDocument` et `cy.transitionDocument`
+  installent l'état en millisecondes, un seul geste passe par le navigateur. Une régression du
+  formulaire ne fait donc plus échouer les tests de décision.
+- **Isolation par jeton, pas par nettoyage** : chaque exécution préfixe ses titres par un jeton
+  horodaté et filtre la grille dessus. La base garde ses 10 000 documents de démonstration, la suite
+  est rejouable, aucun spec ne supprime de données.
+- **Sélecteurs par rôle et par texte** (`[role="row"]`, `[role="gridcell"][col-id]`, `#title`,
+  `cy.contains('button', 'Soumettre')`) : ce sont les repères d'un utilisateur et d'un lecteur
+  d'écran, pas les classes internes d'AG Grid.
+- **Retries en mode `run` seulement** : une seconde chance en CI absorbe une instabilité réseau, le
+  rapport signale quand même un test *flaky*.
+- **Le spec reste boîte noire** : une règle de `scripts/web-structure.test.mjs` interdit d'importer
+  `src/app` depuis `cypress/e2e/`.
+
+### Incréments et observations
+
+Quatre specs, huit tests : contribution (création par le formulaire, soumission, piste d'audit),
+refus `EMPTY_DOCUMENT` affiché tel quel, décision (approbation, rejet puis correction), grille (filtre
+serveur avec total exact, tri par en-tête, filtre de statut puis effacement), conflit de version
+(bandeau d'information puis état rechargé).
+
+Quatre défauts corrigés en exécutant :
+
+- `bad option: --no-sandbox` : l'environnement exporte `ELECTRON_RUN_AS_NODE=1`, Cypress tourne alors
+  comme un Node nu. `make e2e-run` lance avec `env -u ELECTRON_RUN_AS_NODE`.
+- Sélecteur `.ag-center-cols-container .ag-row` introuvable : ce conteneur n'existe plus dans AG Grid
+  36. Remplacé par les rôles ARIA, stables entre versions majeures.
+- `have.length 3` sur une grille virtualisée : seules les lignes visibles sont rendues (20 observées).
+  L'assertion porte désormais sur l'état observable (valeurs des filtres, libellé de synthèse).
+- `cy.contains(/^…$/)` jamais satisfait : le texte du `<p role="status">` contient des espaces et des
+  retours à la ligne. Assertions `contain.text` / `not.contain.text`.
+
+### Vérification exécutée
+
+`make e2e-run` : 4 fichiers, **8 tests, 8 réussis, 0 ignoré**, 5 s ; cinq exécutions consécutives
+vertes, aucun test *flaky*, sur une base contenant 10 002 documents de démonstration plus l'import E1.
+`format:check` propre, 40 tests web, 9 tests de structure, build 269,03 kB initial.
+
+### Limites
+
+Pas de job CI : un parcours Cypress en CI demande Java, Node et un navigateur dans le même job, plus
+une pile PostgreSQL/Kafka et des attentes de santé — c'est le packaging de S11. Aucune exécution
+distante n'est revendiquée. Pas de couverture issue de Cypress, pas de multi-onglets, pas de charge.
+
+## S10 — SonarQube, couverture et dépendances, 21 novembre 2026
+
+### Décisions
+
+- **Serveur en profil Compose** (`quality`) : ni le démarrage local ni `make verify` n'en dépendent.
+- **Scanner CLI en conteneur plutôt que plugin Maven** : un seul point d'entrée analyse Java et
+  Angular ; le plugin aurait laissé le front de côté. Contrepartie assumée : pas de
+  `sonar.java.libraries`, donc quelques règles dépendant des types de bibliothèques sont moins
+  précises.
+- **La couverture est importée, jamais mesurée** : JaCoCo et Vitest produisent les rapports, le
+  scanner les lit. Un chemin faux donne 0 %, pas une erreur.
+- **Un jeton, jamais un mot de passe** : `make quality-token` attend `UP`, change le mot de passe par
+  défaut (l'appel s'authentifie avec l'ancien), puis crée un jeton dans `.env.local` (0600, ignoré).
+- **Corriger plutôt que masquer** : le seul défaut *Blocker* (`java:S1845`, `TYPE` à côté de `type`
+  dans `DocumentLifecycleEvent`) est devenu `EVENT_TYPE` avec un commentaire. Aucune règle désactivée.
+- **Mise à jour de correctif prise, changement majeur refusé** : six avis npm graves supprimés par
+  `@angular/cli`/`@angular/build` 21.2.26 → 21.2.30 et `postcss` 8.5.6 → 8.5.33 ; seize avis modérés
+  subsistants ne se corrigent que par Angular 22, non pris pour un outil de build.
+- **`dependency:analyze` lu, pas obéi** : les dépendances « utilisées non déclarées » arrivent par les
+  starters et sont versionnées par le BOM Spring Boot ; convention documentée.
+
+### Incréments et observations
+
+`sonar-project.properties` déclare sources, tests, binaires Java, rapports JaCoCo/lcov/JUnit et
+exclusions ; `scripts/sonar-token.mjs` automatise les trois appels d'API d'une instance neuve ; la CI
+gagne un job conditionnel `sonar-analysis` avec `-Dsonar.qualitygate.wait=true` ; `web/package.json`
+gagne un script `coverage` produisant `lcov.info`.
+
+Résultats mesurés : **4 552 lignes**, **couverture 87,2 %** (lignes 89,2 %, branches 82,1 %),
+duplication 0,0 %, **0 bug, 0 vulnérabilité, 0 hotspot, 0 code smell**, 195 tests importés sans échec,
+porte « Sonar way » `OK`. `npm audit` : 22 avis (6 graves) avant mise à jour, **0 grave** après, 16
+modérés documentés.
+
+Deux avertissements du scan expliqués plutôt que cachés : `missing blame information` (fichiers non
+commités au moment du scan) et `missing sonar.java.libraries` (précision de quelques règles).
+
+### Vérification exécutée
+
+`make quality-up`, `make quality-token`, `make quality-scan` : `ANALYSIS SUCCESSFUL`, tâche de calcul
+`SUCCESS`, 2 min 45 s au premier passage ; mesures ci-dessus lues par l'API du serveur. Non-régression
+après la mise à jour de la chaîne Angular : 40 tests web, 9 tests de structure, `format:check` propre,
+build réussi, **8 parcours Cypress verts**.
+
+### Limites
+
+Job `sonar-analysis` **préparé, jamais exécuté en distant** (aucun serveur partagé). Instance locale à
+base embarquée, pas d'analyse de branches ni de décoration de *merge request*. L'édition communautaire
+n'inclut pas l'analyse des dépendances : `make quality-deps` la remplace partiellement. Le front
+n'importe que sa couverture, pas ses résultats d'exécution.
