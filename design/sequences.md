@@ -1,0 +1,189 @@
+# Séquences
+
+Six parcours qui expliquent le comportement réel.
+
+## 1. Créer un brouillon depuis l'interface
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Utilisateur
+  participant P as DocumentCreatePage
+  participant F as DocumentForm
+  participant API as DocumentApi
+  participant R as DocumentController
+  participant S as DocumentCommandService
+  participant D as Document
+  participant P2 as JpaDocumentRepository
+  participant DB as PostgreSQL
+
+  U->>F: modèle, titre, sections
+  F->>F: validation (vide, longueurs)
+  F-->>P: saved(valeurs normalisées)
+  P->>API: create(...)
+  API->>R: POST /api/documents + X-User
+  R->>R: @Valid sur le DTO
+  R->>S: CreateDocumentCommand
+  S->>D: Document.create(id, ..., maintenant)
+  D-->>S: Draft v1 + audit CREATED
+  S->>P2: add(document)
+  P2->>DB: INSERT document, sections, audit, instantané v1
+  P2-->>S: ok
+  S-->>R: Document
+  R->>R: DocumentDetail.from(document)
+  R-->>API: 201 + Location + corps
+  API-->>P: DocumentDetail
+  P->>U: navigation /documents/{id}
+```
+
+## 2. Soumettre, avec la règle métier
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Utilisateur
+  participant P as DocumentDetailPage
+  participant API as DocumentApi
+  participant R as DocumentController
+  participant S as DocumentCommandService
+  participant D as Document
+  participant P2 as JpaDocumentRepository
+
+  U->>P: clic Soumettre
+  P->>API: transition(id, submit, version)
+  API->>R: POST /{id}/submit {expectedVersion}
+  R->>S: ChangeDocumentStatusCommand
+  S->>P2: findById(id)
+  S->>S: version attendue == version lue ?
+  S->>D: submit(author, maintenant)
+  alt aucune section valide
+    D-->>S: DomainException EMPTY_DOCUMENT
+    S-->>R: exception
+    R-->>API: 409 problem+json code=EMPTY_DOCUMENT
+    API-->>P: ApiFailure
+    P->>U: alerte avec le detail du serveur
+  else sections valides
+    D-->>S: Submitted v+1 + audit SUBMITTED
+    S->>P2: save(document, version attendue)
+    P2->>P2: racine, sections, audit, instantané
+    P2-->>S: ok (même transaction)
+    S-->>R: Document
+    R-->>API: 200 DocumentDetail
+    API-->>P: DocumentDetail
+    P->>U: badge Soumis, action suivante
+  end
+```
+
+## 3. Deux écrivains concurrents
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant A as Client A
+  participant B as Client B
+  participant S as Service
+  participant DB as PostgreSQL
+
+  A->>S: approve(id, expectedVersion=3)
+  B->>S: reject(id, expectedVersion=3)
+  S->>DB: A lit la version 3
+  S->>DB: B lit la version 3
+  S->>DB: A : UPDATE documents ... WHERE lock_version = n
+  DB-->>S: 1 ligne, COMMIT (version 4)
+  S->>DB: B : UPDATE documents ... WHERE lock_version = n
+  DB-->>S: 0 ligne
+  S-->>B: DocumentConflictException vers 409
+  Note over A,B: un seul gagnant, aucune écriture partielle
+```
+
+Le perdant ne laisse ni section, ni audit, ni instantané : les quatre écritures sont dans une transaction.
+
+## 4. Charger un bloc de grille
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant G as AG Grid (infinite)
+  participant DS as document-datasource
+  participant API as DocumentApi
+  participant R as DocumentController
+  participant P as JpaDocumentRepository
+
+  G->>DS: getRows(startRow 0, endRow 25, sortModel)
+  DS->>DS: toQuery vers sort=updatedAt:desc
+  DS->>API: list(query)
+  API->>R: GET /api/documents?startRow=0&endRow=25&sort=...
+  R->>R: validation de la fenêtre et du tri
+  R->>P: search(DocumentSearch)
+  P->>P: count(filtres) puis rows(fenêtre)
+  P-->>R: DocumentPage(rowCount, rows)
+  R-->>API: 200 {rowCount, rows}
+  API-->>DS: page
+  DS->>G: successCallback(rows, rowCount)
+  Note over G: bloc suivant seulement au défilement
+```
+
+Un tri d'en-tête relance ce cycle une fois. Un changement de filtre de la barre d'outils purge les blocs avant de relancer.
+
+## 5. Lire une version enregistrée
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Utilisateur
+  participant P as DocumentDetailPage
+  participant API as DocumentApi
+  participant R as DocumentController
+  participant Q as DocumentQueryService
+  participant Rep as JpaDocumentRepository
+  participant DB as PostgreSQL
+
+  U->>P: clic sur une entrée d'audit (version 1)
+  P->>API: version(id, 1)
+  API->>R: GET /api/documents/{id}/versions/1
+  R->>R: @Min(1) sur le paramètre version
+  R->>Q: version(id, 1)
+  Q->>Rep: version(id, 1)
+  Rep->>DB: SELECT audit + document_versions + sections figées
+  alt instantané absent
+    DB-->>Rep: vide
+    Q->>Rep: exists(id)
+    Rep-->>Q: document présent
+    Q-->>R: DocumentVersionNotFoundException
+    R-->>API: 404 code=DOCUMENT_VERSION_NOT_FOUND
+  else instantané présent
+    DB-->>Rep: titre, sections et statut de l'époque
+    Rep-->>Q: DocumentVersion
+    Q-->>R: DocumentVersion
+    R-->>API: 200 DocumentVersionResponse
+    API-->>P: DocumentVersion
+    P->>U: panneau en lecture seule, marqué « version 1 »
+  end
+```
+
+La version courante reste affichée en haut : le panneau montre des valeurs figées, pas un formulaire.
+
+## 6. Traduire une erreur en problème HTTP
+
+```mermaid
+sequenceDiagram
+  participant C as Contrôleur
+  participant H as ApiExceptionHandler
+  actor U as Client
+
+  C->>H: DocumentNotFoundException
+  H-->>U: 404 code=DOCUMENT_NOT_FOUND
+  C->>H: DocumentVersionNotFoundException
+  H-->>U: 404 code=DOCUMENT_VERSION_NOT_FOUND
+  C->>H: DocumentConflictException
+  H-->>U: 409 code=VERSION_CONFLICT
+  C->>H: DomainException
+  H-->>U: 409 code=INVALID_TRANSITION / EMPTY_DOCUMENT / NON_MONOTONIC_TIME
+  C->>H: IllegalArgumentException, DTO invalide
+  H-->>U: 400 code=INVALID_REQUEST avec errors
+  C->>H: Exception inattendue
+  H-->>U: 500 code=INTERNAL_ERROR
+  Note over H: détail masqué et journalisé côté serveur
+```
+
+Toutes les réponses d'erreur sont en `application/problem+json` avec un `code` stable, utilisé par l'interface.

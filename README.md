@@ -129,6 +129,8 @@ La vérification normale compare le contrat ; elle ne réécrit pas l'export.
 
 ## Progression et CI
 
-Lire la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), celle de la [grille](docs/phases/S6-grid.md), les [ADR](docs/adr/0003-application-read-model-and-atomic-ui.md) et le [journal](journal.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
+Les [ADR](docs/adr/0003-application-read-model-and-atomic-ui.md) portent les décisions, le [journal](journal.md) l'historique, et [design/](design/README.md) les schémas : frontières, domaine, données, cas d'usage, séquences et interface.
+
+Lire aussi la [roadmap](docs/roadmap.md), le [modèle de domaine](docs/domain-model.md), les [fiches de phase](docs/phases/S1-domain.md), celle de la [grille](docs/phases/S6-grid.md). Les références d'origine sont conservées à l'identique dans `docs/preparation/` ; leurs limites sont expliquées dans les notes de lecture.
 
 La CI GitLab est **préparée, sans exécution distante observée**. Elle suppose `acd-kata` à la racine du dépôt GitLab et un runner Docker configuré pour le service Docker-in-Docker privilégié. Le dépôt parent KATAs, ses fichiers et ses réglages ne sont pas modifiés. Aucun push, déploiement ou provisionnement cloud n'est effectué.
