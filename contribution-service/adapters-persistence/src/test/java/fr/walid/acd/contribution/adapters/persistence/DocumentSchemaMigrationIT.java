@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DocumentSchemaMigrationIT {
 
     private static final String[] TABLES = {"documents", "document_sections", "document_audit",
-            "document_versions", "document_version_sections"};
+            "document_versions", "document_version_sections", "outbox_events"};
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16.14-alpine");
@@ -38,8 +38,8 @@ class DocumentSchemaMigrationIT {
                     assertThat(tableExists(connection, table)).as(table).isTrue();
                 }
 
-                // Two changesets: the aggregate and the stored versions.
-                liquibase.rollback(2, new Contexts(), new LabelExpression());
+                // Three changesets: the aggregate, the stored versions and the outbox.
+                liquibase.rollback(3, new Contexts(), new LabelExpression());
                 for (String table : TABLES) {
                     assertThat(tableExists(connection, table)).as(table).isFalse();
                 }

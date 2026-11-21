@@ -20,6 +20,7 @@
 
     <modules>
         <module>contribution-service</module>
+        <module>review-service</module>
     </modules>
 
     <properties>

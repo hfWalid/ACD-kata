@@ -1,6 +1,6 @@
 # Séquences
 
-Six parcours qui expliquent le comportement réel.
+Huit parcours qui expliquent le comportement réel.
 
 ## 1. Créer un brouillon depuis l'interface
 
@@ -163,7 +163,79 @@ sequenceDiagram
 
 La version courante reste affichée en haut : le panneau montre des valeurs figées, pas un formulaire.
 
-## 6. Traduire une erreur en problème HTTP
+## 6. Publier un événement par le relais
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as Planificateur
+  participant L as OutboxRelay
+  participant O as EventOutbox
+  participant DB as PostgreSQL
+  participant P as KafkaEventPublisher
+  participant K as Kafka
+
+  S->>L: relay(batchSize)
+  L->>O: claimDue(50, maintenant + bail)
+  O->>DB: UPDATE ... FOR UPDATE SKIP LOCKED<br/>RETURNING id, colonnes, attempts
+  DB-->>O: lignes réclamées
+  O-->>L: OutboxEntry[]
+  loop chaque événement
+    L->>P: publish(event)
+    P->>K: send(clé = documentId, JSON + en-têtes)
+    K-->>P: accusé
+    alt accusé reçu
+      Note over L: ajouté à la liste des publiés
+    else échec ou délai dépassé
+      L->>O: markFailed(id, erreur, maintenant + backoff)
+      O->>DB: attempts + 1, last_error, next_attempt_at
+    end
+  end
+  L->>O: markPublished(ids, maintenant)
+  L-->>S: nombre publié
+```
+
+Un relais interrompu avant la publication ne perd rien : le bail expire et le lot est repris. C'est la raison de la déduplication côté consommateur.
+
+## 7. Consommer un événement sans effet dupliqué
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant K as Kafka
+  participant Li as DocumentLifecycleListener
+  participant J as EventEnvelopeJson
+  participant R as ReviewService
+  participant DB as PostgreSQL
+
+  K->>Li: message (clé = documentId)
+  Li->>J: read(payload)
+  alt schéma inconnu ou champ manquant
+    J-->>Li: EventContractException
+    Li-->>K: erreur non réessayable
+    Note over K: publication sur <topic>.DLT
+  else contrat v1
+    J-->>Li: DocumentLifecycleEvent
+    Li->>R: handle(event)
+    R->>DB: INSERT review_inbox ... ON CONFLICT DO NOTHING
+    alt déjà traité
+      DB-->>R: 0 ligne
+      R-->>Li: false
+      Note over Li: ignoré, offset commité
+    else nouveau
+      R->>DB: avance last_version si version > dernière
+      alt version périmée
+        DB-->>R: 0 ligne
+        R-->>Li: false
+      else version courante
+        R->>DB: ouvre ou clôt la tâche
+        R-->>Li: true
+      end
+    end
+  end
+```
+
+## 8. Traduire une erreur en problème HTTP
 
 ```mermaid
 sequenceDiagram

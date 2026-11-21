@@ -118,6 +118,8 @@ Toute autre combinaison lève `DomainException("INVALID_TRANSITION")` et ne chan
 
 Les instantanés de version (`document_versions`) sont une projection de persistance : le domaine ne connaît que son audit. Aucun code métier ne lit une version stockée, il ne fait que l'afficher.
 
+Les événements de sortie sont eux aussi hors du domaine : `DocumentLifecycleEvent` vit dans `application` et se construit à partir de l'audit. Le domaine ne sait pas qu'un broker existe, ce qui rend la machine à états testable sans infrastructure.
+
 ## Couverture exigée
 
 100 % des branches et des lignes de `domain` et `application` (JaCoCo, échec du build sinon), dont toute la machine à états.

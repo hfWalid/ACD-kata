@@ -1,0 +1,12 @@
+{
+  "eventId": "2c1f5f0e-8a6c-4b2a-9a3f-0f3c7b1d5e11",
+  "type": "document.lifecycle.changed",
+  "schemaVersion": 1,
+  "occurredAt": "2026-11-18T10:00:00Z",
+  "documentId": "5f476a52-0145-4e1e-9366-d61b8e529ff4",
+  "documentVersion": 2,
+  "action": "SUBMITTED",
+  "status": "Submitted",
+  "title": "Contrat d'exploitation",
+  "actor": "walid"
+}

@@ -66,6 +66,30 @@ Toute mutation d'un document existant exige `expectedVersion` : la version méti
 | Recharge sur `VERSION_CONFLICT` | Résoudre le conflit à la place de l'utilisateur |
 | Affiche une version stockée à la demande | Rejouer l'historique côté client |
 
-## Hors périmètre S0–S7
+## Contexte review
 
-Authentification, autorisation par rôle, publication externe, revue distribuée, notifications. Voir [roadmap](../docs/roadmap.md) S8+.
+Aucun acteur humain ne déclenche ces cas d'usage : ils sont provoqués par les événements du contexte contribution.
+
+```mermaid
+flowchart LR
+  K[["document.lifecycle.changed"]] --> UC12["Ouvrir une tâche<br/>sur SUBMITTED"]
+  K --> UC13["Clore la tâche<br/>sur APPROVED ou REJECTED"]
+  K --> UC14["Suivre la version<br/>appliquée"]
+  UC12 --> T[("review_tasks")]
+  UC13 --> T
+  UC14 --> V[("review_documents")]
+  T -.->|"rejeu"| X["Ignoré"]
+```
+
+| Cas d'usage | Déclencheur | Effet |
+|---|---|---|
+| Ouvrir une tâche de revue | `SUBMITTED` | une ligne `PENDING` par version soumise |
+| Clore la tâche | `APPROVED` ou `REJECTED` | état et décideur enregistrés |
+| Suivre la version | toute action | `last_version` avance, jamais ne recule |
+| Consulter les tâches | humain, `GET /api/review-tasks` | lecture seule |
+
+Ce que le contexte review ne fait pas : décider du statut d'un document, écrire dans les tables du contexte contribution, rejouer le cycle de vie ([ADR 0005](../docs/adr/0005-review-context-ownership.md)).
+
+## Hors périmètre S0–S8
+
+Authentification, autorisation par rôle, publication externe, notifications, décision distribuée. Voir [roadmap](../docs/roadmap.md) S9+.

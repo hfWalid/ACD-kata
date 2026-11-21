@@ -1,17 +1,18 @@
-# Design — ACD Kata (S0 → S7)
+# Design — ACD Kata (S0 → S8)
 
-Vue courte de ce qui est construit en S0–S7 : frontières, domaine, données, cas d'usage, séquences, interface.
+Vue courte de ce qui est construit en S0–S8 : frontières, domaine, données, cas d'usage, séquences, événements, interface.
 
 | Fichier | Contenu |
 |---|---|
-| [architecture.md](architecture.md) | Frontières, dépendances, ports, exécution locale |
+| [architecture.md](architecture.md) | Frontières, ports, garde-fous, exécution locale |
 | [domain.md](domain.md) | Agrégat, machine à états, invariants |
-| [data-model.md](data-model.md) | Tables, contraintes, concurrence |
-| [use-cases.md](use-cases.md) | Acteurs, cas d'usage, droits |
-| [sequences.md](sequences.md) | Création, transition, conflit, bloc de grille, version lue, erreurs |
+| [data-model.md](data-model.md) | Tables, contraintes, concurrence, outbox, schéma review |
+| [events.md](events.md) | Contrat, garanties, déduplication, pannes |
+| [use-cases.md](use-cases.md) | Acteurs, cas d'usage, droits, contexte review |
+| [sequences.md](sequences.md) | Création, transition, conflit, grille, versions, relais, consommation, erreurs |
 | [web.md](web.md) | Routes, composants, états, grille |
 
-Périmètre : backend hexagonal (S1–S4), interface Angular, grille et formulaire (S5–S7), y compris le modèle de lecture applicative et les instantanés de version.
+Périmètre : backend hexagonal (S1–S4), interface Angular (S5–S7), outbox, Kafka et contexte review (S8).
 
 Deux règles de lecture :
 
@@ -21,6 +22,9 @@ Deux règles de lecture :
 ```mermaid
 flowchart LR
   U["Utilisateur"] --> W["Angular<br/>S5–S7"]
-  W -->|"JSON /api"| S["contribution-service<br/>S1–S4"]
-  S --> DB[("PostgreSQL")]
+  W -->|"JSON /api"| C["contribution-service<br/>S1–S4 · outbox S8"]
+  C --> DB[("PostgreSQL")]
+  C --> K[["Kafka<br/>lifecycle v1"]]
+  K --> R["review-service<br/>S8"]
+  R --> DB
 ```

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="003-add-outbox" author="walid">
+        <comment>
+            Transactional outbox. One row per document mutation, written in the same transaction as
+            the aggregate change it describes. A relay publishes unpublished rows and records the
+            outcome, so a broker outage delays events instead of losing them.
+        </comment>
+        <createTable tableName="outbox_events">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="event_type" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="schema_version" type="integer"><constraints nullable="false"/></column>
+            <column name="document_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="business_version" type="bigint"><constraints nullable="false"/></column>
+            <column name="action" type="varchar(30)"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="title" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="actor" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="occurred_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="attempts" type="integer" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="next_attempt_at" type="timestamptz"/>
+            <column name="published_at" type="timestamptz"/>
+            <column name="last_error" type="varchar(500)"/>
+        </createTable>
+        <addUniqueConstraint tableName="outbox_events" columnNames="document_id,business_version"
+                             constraintName="uk_outbox_events_document_version"/>
+        <sql>
+            ALTER TABLE outbox_events ADD CONSTRAINT ck_outbox_events_schema_version CHECK (schema_version &gt;= 1);
+            ALTER TABLE outbox_events ADD CONSTRAINT ck_outbox_events_version CHECK (business_version &gt;= 1);
+            ALTER TABLE outbox_events ADD CONSTRAINT ck_outbox_events_attempts CHECK (attempts &gt;= 0);
+            ALTER TABLE outbox_events ADD CONSTRAINT ck_outbox_events_action CHECK (action IN
+                ('CREATED','CONTENT_UPDATED','SUBMITTED','REVIEW_STARTED','APPROVED','REJECTED','PUBLISHED','ARCHIVED'));
+            ALTER TABLE outbox_events ADD CONSTRAINT ck_outbox_events_status CHECK (status IN
+                ('Draft','Submitted','InReview','Approved','Rejected','Published','Archived'));
+            CREATE INDEX idx_outbox_events_pending ON outbox_events (occurred_at, id) WHERE published_at IS NULL;
+        </sql>
+        <rollback>
+            <dropTable tableName="outbox_events"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

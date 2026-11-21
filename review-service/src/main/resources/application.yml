@@ -1,0 +1,47 @@
+spring:
+  config:
+    import: optional:file:.env.local[.properties]
+  application:
+    name: acd-review
+  datasource:
+    # The kata keeps one PostgreSQL instance for both services and separates their tables by schema.
+    # Production topology would give each service its own database.
+    url: jdbc:postgresql://${POSTGRES_HOST:127.0.0.1}:${POSTGRES_PORT:55432}/acd_contribution
+    username: ${POSTGRES_USER:acd}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      # Liquibase needs the schema to exist before it writes its own changelog table.
+      connection-init-sql: CREATE SCHEMA IF NOT EXISTS review
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: review
+    liquibase-schema: review
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    consumer:
+      group-id: review-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${REVIEW_SERVER_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+acd:
+  events:
+    topic: ${KAFKA_EVENTS_TOPIC:acd.document.lifecycle.v1}

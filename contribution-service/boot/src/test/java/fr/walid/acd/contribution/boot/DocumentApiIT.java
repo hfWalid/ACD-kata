@@ -31,7 +31,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @AutoConfigureObservability(tracing = false)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "acd.outbox.relay.enabled=false"
+})
 class DocumentApiIT {
 
     @Container

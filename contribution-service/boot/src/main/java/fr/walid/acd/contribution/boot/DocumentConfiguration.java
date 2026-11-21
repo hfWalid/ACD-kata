@@ -3,6 +3,8 @@ package fr.walid.acd.contribution.boot;
 import fr.walid.acd.contribution.application.port.in.DocumentCommands;
 import fr.walid.acd.contribution.application.port.in.DocumentQueries;
 import fr.walid.acd.contribution.application.port.out.DocumentRepository;
+import fr.walid.acd.contribution.application.port.out.EventOutbox;
+import fr.walid.acd.contribution.application.port.out.Transactions;
 import fr.walid.acd.contribution.application.service.DocumentCommandService;
 import fr.walid.acd.contribution.application.service.DocumentQueryService;
 import org.springframework.context.annotation.Bean;
@@ -22,8 +24,9 @@ class DocumentConfiguration {
     }
 
     @Bean
-    DocumentCommands documentCommands(DocumentRepository repository, Clock clock) {
-        return new DocumentCommandService(repository, clock, UUID::randomUUID);
+    DocumentCommands documentCommands(DocumentRepository repository, EventOutbox outbox, Transactions transactions,
+                                      Clock clock) {
+        return new DocumentCommandService(repository, outbox, transactions, clock, UUID::randomUUID);
     }
 
     @Bean

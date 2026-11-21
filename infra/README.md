@@ -1,6 +1,6 @@
 # Infrastructure locale du kata
 
-Le Compose racine définit PostgreSQL 16.14, avec volume persistant, port local 55432 et mot de passe fourni par `.env.local`. Depuis S3–S4, le backend utilise cette base et applique les migrations Liquibase au démarrage.
+Le Compose racine définit PostgreSQL 16.14 — volume persistant, port local 55432, mot de passe fourni par `.env.local` — et Kafka 3.9.1 en mode KRaft (un nœud `broker,controller`), port local 9092, avec contrôle de santé par `kafka-broker-api-versions`. Depuis S3–S4, le backend utilise cette base et applique les migrations Liquibase au démarrage.
 
 Les tests d'intégration créent leurs propres bases PostgreSQL via Testcontainers et ne se connectent pas au volume Compose. Le rollback destructif du schéma initial est vérifié uniquement dans ces bases jetables.
 
@@ -12,4 +12,4 @@ Le contrôle de santé effectue une requête authentifiée sur l'adresse réseau
 
 Pour l'exercice de grille S6, `make seed-documents` écrit 10 000 documents de démonstration directement dans ce volume via `scripts/seed-documents.sql` : agrégats cohérents (version = nombre d'entrées d'audit, 1 000 `InReview`), commande rejouable sans doublon. Elle ne s'exécute que sur la base Compose locale et n'est pas utilisée par les tests.
 
-Kafka sera défini en S8, SonarQube en S10 et le packaging conteneur applicatif en S11. Terraform et le cloud restent optionnels en S12. La CI backend préparée utilise un service Docker-in-Docker pour Testcontainers et requiert un runner compatible ; aucun réglage de runner ni ressource cloud n'est créé ici.
+Kafka sert depuis S8 de transport aux événements de cycle de vie : `contribution-service` publie, `review-service` consomme. Le broker de test est volontairement minimal (un nœud, réplication 1, création automatique de topics) : il démontre la chaîne, il ne représente pas une topologie de production. SonarQube arrivera en S10 et le packaging conteneur applicatif en S11. Terraform et le cloud restent optionnels en S12. La CI backend préparée utilise un service Docker-in-Docker pour Testcontainers et requiert un runner compatible ; aucun réglage de runner ni ressource cloud n'est créé ici.

@@ -17,6 +17,17 @@ spring:
           time_zone: UTC
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
   mvc:
     problemdetails:
       enabled: true
@@ -42,6 +53,20 @@ management:
   endpoint:
     health:
       show-details: never
+
+acd:
+  events:
+    topic: ${KAFKA_EVENTS_TOPIC:acd.document.lifecycle.v1}
+    send-timeout: 5s
+  outbox:
+    relay:
+      enabled: ${OUTBOX_RELAY_ENABLED:true}
+      batch-size: 50
+      interval: 2s
+      initial-delay: 2s
+      lease: 30s
+      base-backoff: 1s
+      max-backoff: 5m
 
 springdoc:
   api-docs:

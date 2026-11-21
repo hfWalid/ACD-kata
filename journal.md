@@ -224,3 +224,47 @@ Erreurs corrigées en route, toutes détectées par les tests :
 - `make verify` : **exit 0**. 116 tests backend (18 domaine, 14 application, 50 MVC, 17 persistance, 11 ArchUnit, 6 HTTP), 40 tests web (9 fichiers), 8 tests de structure Node, Prettier conforme, build initial 268 kB avec la grille dans un chunk lazy de 1,23 Mo, contrat OpenAPI inchangé.
 - Navigateur avec backend et PostgreSQL locaux : liste de 10 007 documents avec pagination 25 lignes et résumé serveur ; détail d'un document en version 2 dont le panneau de la version 1 affiche encore le titre et l'objet d'origine puis se ferme ; création d'un document depuis le formulaire, redirection vers sa page et statut `Brouillon` porté par le nouvel atome.
 - Les tests web n'ont pas été modifiés pour accompagner le refactoring, sauf ajout de deux fichiers de spécification (`api-failure.spec.ts`, `status-badge.spec.ts`) : les 38 tests existants passent sur les nouveaux chemins, ce qui établit la non-régression du comportement.
+
+## S8 — événements, outbox et contexte review, 21 novembre 2026
+
+Phase S8 explicitement demandée, traitée en quatre incréments : outbox applicatif, persistance et concurrence, producteur Kafka et contrat, contexte review avec déduplication. Le domaine et le contrat REST n'ont pas changé ; 162 tests backend au lieu de 116.
+
+### Décisions
+
+- **Outbox plutôt que publication directe.** L'événement est écrit dans la transaction de la mutation, puis publié par un relais. `Transactions` est un port explicite : l'atomicité reste une décision applicative, le mécanisme est délégué à l'adapter.
+- **At-least-once assumé, déduplication côté consommateur.** Le relais peut republier après un crash (bail expiré) ; c'est le consommateur qui rend la répétition inoffensive, par deux gardes SQL (`event_id` déjà vu, version inférieure à la dernière appliquée).
+- **Un contrat versionné, testé par fichier.** `contracts/events/document-lifecycle-changed-v1.json` est comparé champ par champ au JSON produit ; une évolution silencieuse casse le build. La version est aussi stockée dans la table d'outbox, pour qu'une ligne ancienne soit publiée avec la version à laquelle elle appartient.
+- **La décision reste dans le contexte contribution.** `review-service` possède la tâche de revue, pas le statut du document : pas de saga, pas d'écriture croisée (ADR 0005).
+- **Kafka reste optionnel à l'exécution.** Sans broker, l'API continue de servir et les événements s'accumulent ; le retard est visible par `attempts` et `last_error`.
+
+### Incréments et observations
+
+| Incrément | Premier échec observé | Résultat |
+|---|---|---|
+| Application | Aucun port d'événement ; tests écrits avant l'implémentation | `DocumentLifecycleEvent`, `EventOutbox`, `EventPublisher`, `Transactions`, `OutboxRelay` ; 16 tests |
+| Persistance | Table absente, puis transaction non appliquée au test d'atomicité | changeset 003, adapters JDBC, 7 tests dont `SKIP LOCKED` et rollback réel |
+| Messagerie | JSON produit non conforme au contrat, puis échec de publication non remonté | sérialiseur canonique, producteur Kafka avec accusé, 7 tests dont 2 sur broker réel |
+| Contexte review | Consommateur absent, puis rejeu appliqué deux fois | consumer idempotent, inbox, garde de version, `DLT` ; 12 tests |
+| Bout en bout | Aucun événement sur le topic avant le relais | `OutboxPublicationIT` : HTTP → outbox → relais → Kafka, et rien pour une mutation refusée |
+
+Erreurs corrigées en route, toutes détectées par l'exécution :
+
+- `spring.liquibase.default-schema-name` n'existe pas : Boot lie `default-schema`, et une URL JDBC avec `currentSchema` échoue avant que Liquibase ne crée le schéma. Le schéma est créé par `connection-init-sql`, les tables du contexte sont qualifiées `review.*`.
+- Spring Kafka publie les messages morts sur `<topic>-dlt`, pas `<topic>.DLT` : la destination est désormais explicite, sur la même partition.
+- `@Transactional(propagation = MANDATORY)` sur un bean `final` et non public fait échouer la création du proxy CGLIB : la classe est publique, le garde-fou conservé.
+- La porte de couverture a refusé `EventPublishingException` dans `application` (classe jamais utilisée) : elle est supprimée côté application et portée par l'adaptateur de messagerie, où elle sert réellement.
+- Deux tests de consommation relisaient le topic depuis le début (`auto.offset.reset=earliest`) et prenaient un ancien message pour un nouveau : ils cumulent désormais les messages d'une même session.
+
+### Vérification exécutée
+
+- `./mvnw verify` : **BUILD SUCCESS**, 162 tests backend — 18 domaine, 33 application, 50 MVC, 24 persistance, 7 messagerie, 11 ArchUnit, 7 HTTP, 12 review.
+- Couverture domaine et application toujours exigée à 100 % des branches et des lignes ; le build échoue si un chemin d'erreur du relais n'est pas testé.
+- Parcours local réel avec PostgreSQL et Kafka Compose : création, soumission, début de revue et approbation d'un document ; `review_tasks` passe de `PENDING` (version 2) à `APPROVED` avec `decidedBy = relecteur`.
+- Rejeu : deux republications du même identifiant d'événement laissent le topic à 6 messages, l'inbox à 4 lignes et une seule tâche. Un `schemaVersion` inconnu part en `DLT`.
+- `make infra-up` démarre et attend PostgreSQL et Kafka ; `make review-run` lance le consommateur sur 8082.
+
+### Limites
+
+- Un ordonnanceur par instance : plusieurs instances sont correctes grâce au claim, mais la répartition n'est pas mesurée.
+- Pas de métrique de retard d'outbox publiée : `attempts` et `last_error` restent la seule trace d'un broker indisponible.
+- Rétention et compaction des topics laissées aux réglages par défaut du broker de test.

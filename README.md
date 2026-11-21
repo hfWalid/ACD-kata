@@ -2,9 +2,9 @@
 
 Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine détaillé et l'architecture sont des choix pédagogiques ; ils ne décrivent pas l'architecture interne d'EDF.
 
-**Tranche courante : S1–S7 — domaine, application, PostgreSQL, REST et interface Angular.** Les résultats de vérification sont consignés dans le journal. S8 et les incréments suivants ne sont pas commencés.
+**Tranche courante : S1–S8 — domaine, application, PostgreSQL, REST, interface Angular, outbox et Kafka.** Les résultats de vérification sont consignés dans le journal. S9 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **116 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI comparé, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, et parcours navigateur exécuté sur la liste, la création, les transitions et la lecture des versions.
+Validation locale : **162 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI et contrat d'événement comparés, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, parcours navigateur sur S5–S7 et parcours Kafka réel sur S8.
 
 ## Ce qui est construit
 
@@ -17,8 +17,11 @@ Validation locale : **116 tests backend et 40 tests web réussis, aucun ignoré*
 - Interface Angular 21 standalone, zoneless et stricte : client HTTP typé, routes paresseuses, états de chargement, d'erreur et de vide.
 - Grille AG Grid Community 36 en *infinite row model* : une requête par bloc de 25 lignes sur le contrat `[startRow, endRow[`, tri et filtres serveur.
 - Formulaire réactif (Tailwind 3) : création, correction, actions légales selon le statut, erreurs du domaine affichées telles quelles.
+- Outbox transactionnel : un événement par mutation, écrit avec elle, publié par un relais qui réclame des lots (`FOR UPDATE SKIP LOCKED`) et applique un backoff.
+- Contrat d'événement versionné `document.lifecycle.changed` v1, clé par document, publié sur Kafka avec accusé du broker.
+- Contexte review : second service qui consomme ce topic, ouvre une tâche à la soumission, la clôt à la décision, et ignore un rejeu par deux gardes SQL (inbox et version).
 
-Le domaine n'a aucune dépendance de production externe au JDK. L'application dépend du domaine ; les adapters adaptent les frontières et `boot` assure le câblage. Kafka, outbox et service de revue distribué appartiennent aux phases suivantes.
+Le domaine n'a aucune dépendance de production externe au JDK. L'application dépend du domaine ; les adapters adaptent les frontières et `boot` assure le câblage. Le contexte review est un service séparé : il possède la tâche, jamais le statut du document.
 
 ## Vérifier
 
@@ -55,15 +58,23 @@ make backend-run
 
 `make local-env` crée `.env.local` avec un mot de passe aléatoire et des permissions `0600` **uniquement si le fichier est absent**. S'il existe, son contenu est conservé à l'identique. Le fichier est ignoré par Git ; ne pas le remplacer par `.env.example` lors d'un redémarrage et ne pas partager son contenu.
 
-`make infra-up` attend une connexion PostgreSQL authentifiée avant de réussir. `make backend-run` dépend également de ce contrôle et utilise le même fichier d'environnement que Compose. Un `ENV_FILE` personnalisé est transmis explicitement à Spring.
+`make infra-up` attend une connexion PostgreSQL authentifiée **et** un broker Kafka sain avant de réussir. `make backend-run` dépend également de ce contrôle et utilise le même fichier d'environnement que Compose. Un `ENV_FILE` personnalisé est transmis explicitement à Spring.
 
-PostgreSQL écoute sur `127.0.0.1:55432`, base `acd_contribution`, utilisateur `acd`. Liquibase applique le schéma initial au démarrage ; Hibernate le valide.
+PostgreSQL écoute sur `127.0.0.1:55432`, base `acd_contribution`, utilisateur `acd` ; Kafka écoute sur `127.0.0.1:9092`. Liquibase applique le schéma initial au démarrage ; Hibernate le valide. Le schéma `review` est créé par le service de revue. Les événements partent sur `acd.document.lifecycle.v1` et les messages illisibles sur `acd.document.lifecycle.v1.DLT`.
 
 **Si l'authentification échoue :** conserver `.env.local` et le volume, puis faire vérifier la concordance des identifiants avec le rôle PostgreSQL existant. Modifier `POSTGRES_PASSWORD` dans un fichier n'effectue pas une rotation du mot de passe : l'image l'utilise pour initialiser une base vide et laisse une base existante intacte. [Documentation de l'image PostgreSQL](https://hub.docker.com/_/postgres).
 
 L'API écoute par défaut sur **http://127.0.0.1:8081**. `SERVER_PORT` permet de choisir un autre port. Préférer `make backend-run` pour conserver le contrôle de connexion et le même fichier de configuration entre Compose et Spring.
 
-Arrêter le backend avec Ctrl-C. `make infra-down` arrête PostgreSQL en conservant le volume. Les tests de rollback utilisent uniquement une base jetable : ne pas les transposer au volume utilisateur.
+Arrêter le backend avec Ctrl-C. `make infra-down` arrête PostgreSQL et Kafka en conservant le volume. Les tests de rollback utilisent uniquement une base jetable : ne pas les transposer au volume utilisateur.
+
+## Contexte review local
+
+```sh
+make review-run     # 127.0.0.1:8082, consomme acd.document.lifecycle.v1
+```
+
+`make review-run` réutilise `make infra-up` puis démarre le second service. Les tâches de revue sont lisibles sur `GET http://127.0.0.1:8082/api/review-tasks?state=PENDING`. Sans Kafka, le backend continue de fonctionner : les événements restent dans l'outbox et partent au retour du broker. Détails dans [la fiche S8](docs/phases/S8-events.md) et le [README du service](review-service/README.md).
 
 ## Essayer l'API
 

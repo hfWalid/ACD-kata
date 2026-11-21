@@ -1,6 +1,6 @@
 # Architecture
 
-Deux applications, quatre frontières. Le cœur est en Java pur ; HTTP et SQL sont des adapters ; `boot` compose.
+Deux applications, quatre frontières chacune, un broker entre elles. Le cœur reste en Java pur ; HTTP, SQL et Kafka sont des adapters.
 
 ## Frontières
 
@@ -12,16 +12,24 @@ flowchart TB
     W["Angular 21<br/>pages · organisms · data · core"]
   end
 
-  subgraph Service["contribution-service — Java 21"]
+  subgraph Contribution["contribution-service"]
     R["adapters-rest<br/>document · problem"]
     A["application<br/>commandes · requêtes · ports"]
-    D["domain<br/>Java pur, zéro dépendance"]
-    P["adapters-persistence<br/>JPA · Liquibase"]
-    M["adapters-messaging<br/>vide — S8"]
-    B["boot<br/>composition · configuration"]
+    D["domain<br/>Java pur"]
+    P["adapters-persistence<br/>JPA · outbox JDBC"]
+    M["adapters-messaging<br/>Kafka"]
+    B["boot<br/>composition · relais"]
   end
 
-  DB[("PostgreSQL 16.14")]
+  subgraph Review["review-service"]
+    RC["consumer<br/>listener Kafka"]
+    RA["application<br/>ReviewService · ports"]
+    RP["adapter<br/>JDBC · lecture REST"]
+  end
+
+  DB[("PostgreSQL<br/>acd_contribution + schéma review")]
+  K[["Kafka<br/>acd.document.lifecycle.v1"]]
+  DLT[["acd.document.lifecycle.v1.DLT"]]
 
   W -->|"JSON /api"| R
   R --> A
@@ -30,7 +38,14 @@ flowchart TB
   B --> R
   B --> P
   B --> M
+  B -->|"relais par lot"| P
   P --> DB
+  M --> K
+  K --> RC
+  RC --> RA
+  RA --> RP
+  RP --> DB
+  RC -.->|"contrat illisible"| DLT
 ```
 
 ## Modules
@@ -38,52 +53,57 @@ flowchart TB
 | Module | Rôle | Dépendances autorisées |
 |---|---|---|
 | `domain` | Agrégat, états, audit | JDK seulement |
-| `application` | Cas d'usage, ports, modèles de lecture | `domain`, JDK |
+| `application` | Cas d'usage, ports, modèles de lecture, événement de sortie | `domain`, JDK |
 | `adapters-rest` | `document` (contrôleur, DTO), `problem` (erreurs) | `application`, Spring Web |
-| `adapters-persistence` | Entités JPA, mapping, recherche, instantanés | `application`, JPA, PostgreSQL |
-| `adapters-messaging` | Réservé S8 | `application` |
-| `boot` | Beans, horloge, configuration | tous les adapters |
+| `adapters-persistence` | Entités JPA, outbox JDBC, transactions | `application`, JPA, JDBC, PostgreSQL |
+| `adapters-messaging` | Producteur Kafka, format du contrat | `application`, Spring Kafka |
+| `boot` | Beans, horloge, ordonnanceur du relais | tous les adapters |
+| `review-service` | Consommateur Kafka, tâches de revue | Spring Boot, Kafka, JDBC |
+
+`review-service` est volontairement un seul module : il n'a pas de domaine riche, seulement une projection idempotente. Ses paquets séparent `application`, `consumer` et `adapter`.
 
 ## Ports
 
-| Port | Sens | Opérations |
-|---|---|---|
-| `DocumentCommands` | entrant | 8 commandes : `create`, `update`, `submit`, `startReview`, `approve`, `reject`, `publish`, `archive` |
-| `DocumentQueries` | entrant | `get`, `search`, `version` |
-| `DocumentRepository` | sortant | `findById`, `add`, `save(document, expectedVersion)`, `search`, `exists`, `version` |
+| Port | Service | Sens | Opérations |
+|---|---|---|---|
+| `DocumentCommands` | contribution | entrant | 8 commandes, rendent `DocumentDetail` |
+| `DocumentQueries` | contribution | entrant | `get`, `search`, `version` |
+| `DocumentRepository` | contribution | sortant | `findById`, `add`, `save`, `search`, `exists`, `version` |
+| `EventOutbox` | contribution | sortant | `append`, `claimDue`, `markPublished`, `markFailed` |
+| `EventPublisher` | contribution | sortant | `publish` |
+| `Transactions` | les deux | technique | `inTransaction` : l'atomicité reste une décision applicative |
+| `ReviewTasks` | review | sortant | `remember`, `advanceTo`, `openReview`, `decide` |
 
-Tous les ports rendent des modèles applicatifs, jamais l'agrégat : `DocumentDetail`, `DocumentPage`, `DocumentVersion`. L'adapter REST ne peut donc appeler aucune méthode métier ni observer un état intermédiaire ([ADR 0003](../docs/adr/0003-application-read-model-and-atomic-ui.md)).
-
-`Clock` et `Supplier<UUID>` sont injectés : aucun accès implicite au temps ni à l'aléa.
+Tous les ports rendent des modèles applicatifs, jamais l'agrégat ([ADR 0003](../docs/adr/0003-application-read-model-and-atomic-ui.md)).
 
 ## Garde-fous exécutables
 
 | Garde-fou | Vérifié par |
 |---|---|
-| Framework ou dépendance non-JDK dans `domain` | ArchUnit + Enforcer, chacun avec une fixture en contre-exemple |
+| Framework ou dépendance non-JDK dans `domain` | ArchUnit + Enforcer, avec fixtures en contre-exemple |
 | `application` indépendante de `boot` | ArchUnit |
-| Aucun adapter ne dépend d'un autre adapter | ArchUnit |
+| Aucun adapter ne dépend d'un autre adapter | ArchUnit, y compris `messaging` |
 | Adapter → port, jamais → service concret | ArchUnit |
 | Agrégat interdit dans l'adapter REST | ArchUnit |
 | Implémentation de port hors `application`/adapters | ArchUnit |
-| Entrypoint Spring Boot seulement dans `boot` | ArchUnit |
-| Pas de dépendance sortante explicite dans `domain` | Enforcer |
 | 100 % branches et lignes de `domain` et `application` | JaCoCo, échec du build |
-| Cascade atomique de l'interface | `scripts/web-structure.test.mjs` ([web.md](web.md)) |
-
-Les 11 règles ArchUnit vivent dans `ArchitectureSmokeTest` ; chaque règle a une classe fictive qui doit être rejetée, sinon le test échoue.
+| Cascade atomique de l'interface | `scripts/web-structure.test.mjs` |
+| Format d'événement stable | comparaison au contrat versionné |
+| Rejeu sans effet | `ReviewTaskConsumerIT`, `JdbcEventOutboxIT` |
 
 ## Volume de tests
 
 | Niveau | Tests |
 |---|---|
 | Domaine | 18 |
-| Application | 14 |
+| Application | 33 |
 | MVC (`@WebMvcTest`) | 50 |
-| Persistance (Testcontainers) | 17 |
+| Persistance (Testcontainers) | 24 |
+| Messagerie (unitaires + Kafka réel) | 7 |
 | Architecture (ArchUnit) | 11 |
-| HTTP de bout en bout | 6 |
-| **Backend** | **116** |
+| HTTP de bout en bout | 7 |
+| Contexte review | 12 |
+| **Backend** | **162** |
 | Interface (Vitest) | 40 |
 | Structure de l'interface (Node) | 8 |
 
@@ -92,18 +112,24 @@ Les 11 règles ArchUnit vivent dans `ArchitectureSmokeTest` ; chaque règle a un
 ```mermaid
 flowchart LR
   B["Navigateur<br/>127.0.0.1:4200"] -->|"/api"| V["ng serve<br/>proxy.conf.json"]
-  V -->|"127.0.0.1:8081"| J["Spring Boot<br/>jar boot"]
-  J -->|"55432"| PG[("PostgreSQL<br/>Compose")]
+  V -->|"8081"| C["contribution-service<br/>relais outbox"]
+  C -->|"55432"| PG[("PostgreSQL")]
+  C -->|"9092"| K[["Kafka"]]
+  K -->|"9092"| R["review-service<br/>8082"]
+  R --> PG
   T["mvn verify"] -->|"Testcontainers"| PG2[("PostgreSQL jetable")]
+  T -->|"Testcontainers"| K2[["Kafka jetable"]]
 ```
 
 | Élément | Valeur |
 |---|---|
-| API | `127.0.0.1:8081`, Swagger sur `/swagger-ui/index.html` |
+| API contribution | `127.0.0.1:8081`, Swagger sur `/swagger-ui/index.html` |
+| API review | `127.0.0.1:8082`, `GET /api/review-tasks` |
 | Base locale | PostgreSQL 16.14, volume Compose, `make infra-up` |
-| Tests d'intégration | Testcontainers, jamais la base Compose |
-| Migrations | Liquibase au démarrage, `ddl-auto: validate` |
-| Observation | `/actuator/health`, `/actuator/metrics`, `/actuator/prometheus` |
+| Broker local | Kafka 3.9.1 KRaft, un nœud, `127.0.0.1:9092` |
+| Topics | `acd.document.lifecycle.v1`, `...v1.DLT` |
+| Tests d'intégration | Testcontainers (PostgreSQL et Kafka), jamais l'infra Compose |
+| Observation | `/actuator/health`, `metrics`, `prometheus`, compteur `acd.outbox.published` |
 
 ## Pile technique
 
@@ -112,7 +138,9 @@ flowchart LR
 | Langage / build | Java, Maven Wrapper | 21, 3.9.16 |
 | Framework | Spring Boot | 3.5.16 |
 | Base / migrations | PostgreSQL, Liquibase | 16.14, 5.0.4 |
-| Contrat | springdoc, export vérifié par test | 2.10.0, OpenAPI 3.0.1 |
+| Messagerie | Kafka, spring-kafka | 3.9.1, 3.3.x |
+| Contrat HTTP | springdoc, export vérifié par test | 2.10.0, OpenAPI 3.0.1 |
+| Contrat d'événement | fichier JSON versionné, comparé par test | v1 |
 | Tests back | JUnit 5, AssertJ, ArchUnit, Testcontainers | — |
 | Front | Angular, Tailwind, AG Grid Community | 21.2.26, 3.4.19, 36.3.0 |
 | Tests front | Vitest, `TestBed`, `HttpTestingController` | 4.1.12 |

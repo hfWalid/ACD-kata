@@ -1,6 +1,6 @@
 # Modèle de données
 
-Cinq tables, un agrégat. Le schéma est créé par Liquibase ; Hibernate le valide seulement.
+Neuf tables : six pour le document et son outbox, trois pour le contexte review. Les schémas sont créés par Liquibase ; Hibernate valide seulement.
 
 ```mermaid
 erDiagram
@@ -52,7 +52,26 @@ erDiagram
     varchar title
     text content
   }
+
+  outbox_events {
+    uuid id PK
+    varchar event_type
+    integer schema_version
+    uuid document_id
+    bigint business_version
+    varchar action
+    varchar status
+    varchar title
+    varchar actor
+    timestamptz occurred_at
+    integer attempts
+    timestamptz next_attempt_at
+    timestamptz published_at
+    varchar last_error
+  }
 ```
+
+`outbox_events` n'a pas de clé étrangère vers `documents` : un événement publié doit survivre à la suppression du document qu'il décrit.
 
 ## Trois lectures d'un même document
 
@@ -61,8 +80,50 @@ erDiagram
 | `documents` + `document_sections` | l'état courant | à chaque action |
 | `document_audit` | qui a fait quoi et quand | à chaque action, dans l'agrégat |
 | `document_versions` + `document_version_sections` | ce à quoi ressemblait le document une fois l'action réussie | à chaque action, par la persistance |
+| `outbox_events` | quel événement doit partir au broker | à chaque action, dans la même transaction |
 
 L'audit est du domaine ; l'instantané est une projection de persistance, ce qui dispense de rejouer l'historique pour lire une version.
+
+## Contexte review
+
+Schéma PostgreSQL `review`, même instance locale, propriété du second service.
+
+```mermaid
+erDiagram
+  review_inbox {
+    uuid event_id PK
+    varchar event_type
+    integer schema_version
+    uuid document_id
+    bigint document_version
+    timestamptz received_at
+  }
+
+  review_documents {
+    uuid document_id PK
+    bigint last_version
+    timestamptz updated_at
+  }
+
+  review_tasks {
+    uuid id PK
+    uuid document_id
+    bigint document_version
+    varchar state
+    varchar author
+    timestamptz opened_at
+    timestamptz decided_at
+    varchar decided_by
+  }
+```
+
+| Table | Répond à | Garde |
+|---|---|---|
+| `review_inbox` | cet événement a-t-il déjà été traité ? | clé primaire sur `event_id` |
+| `review_documents` | quelle version a déjà été appliquée ? | `ON CONFLICT DO UPDATE … WHERE last_version < EXCLUDED` |
+| `review_tasks` | quelles revues sont ouvertes ? | `UNIQUE (document_id, document_version)` |
+
+Aucune clé étrangère entre les deux schémas : les deux services ne partagent pas de données, seulement des événements.
 
 ## Correspondance domaine ↔ tables
 
@@ -129,6 +190,17 @@ Trois protections complémentaires :
 - transaction : état courant, audit et instantané validés ensemble ou pas du tout.
 
 Le `UPDATE` de la racine est envoyé **avant** le chargement des collections : un écrivain concurrent produit un conflit, jamais un agrégat composé de deux versions.
+
+## Règles du relais
+
+| Règle | Effet |
+|---|---|
+| `ORDER BY occurred_at, id LIMIT n` avec `FOR UPDATE SKIP LOCKED` | deux relais prennent des lots disjoints |
+| Claim = `next_attempt_at = now() + bail` | un relais mort libère son lot à l'expiration |
+| Échec = `attempts + 1`, `last_error`, `next_attempt_at = now() + backoff` | reprise différée, plafonnée à 5 minutes |
+| Succès = `published_at` renseigné | la ligne ne sera plus réclamée |
+
+Les événements publiés restent dans la table : ils sont la trace de ce qui est parti et la base d'un futur archivage.
 
 ## Règles de lecture
 

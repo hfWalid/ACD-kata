@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="001-create-review-schema" author="walid">
+        <comment>
+            Review context storage. The inbox makes a repeated delivery a no-op, review_documents
+            rejects an event older than what was already applied, and review_tasks holds one task per
+            document version.
+        </comment>
+        <createTable tableName="review_inbox" schemaName="review">
+            <column name="event_id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="event_type" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="schema_version" type="integer"><constraints nullable="false"/></column>
+            <column name="document_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="document_version" type="bigint"><constraints nullable="false"/></column>
+            <column name="received_at" type="timestamptz"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="review_documents" schemaName="review">
+            <column name="document_id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="last_version" type="bigint"><constraints nullable="false"/></column>
+            <column name="updated_at" type="timestamptz"><constraints nullable="false"/></column>
+        </createTable>
+        <createTable tableName="review_tasks" schemaName="review">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="document_id" type="uuid"><constraints nullable="false"/></column>
+            <column name="document_version" type="bigint"><constraints nullable="false"/></column>
+            <column name="state" type="varchar(20)"><constraints nullable="false"/></column>
+            <column name="author" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="opened_at" type="timestamptz"><constraints nullable="false"/></column>
+            <column name="decided_at" type="timestamptz"/>
+            <column name="decided_by" type="varchar(100)"/>
+        </createTable>
+        <addUniqueConstraint tableName="review_tasks" schemaName="review"
+                             columnNames="document_id,document_version"
+                             constraintName="uk_review_tasks_document_version"/>
+        <sql>
+            ALTER TABLE review.review_inbox ADD CONSTRAINT ck_review_inbox_version CHECK (document_version &gt;= 1);
+            ALTER TABLE review.review_inbox ADD CONSTRAINT ck_review_inbox_schema CHECK (schema_version &gt;= 1);
+            ALTER TABLE review.review_documents ADD CONSTRAINT ck_review_documents_version CHECK (last_version &gt;= 1);
+            ALTER TABLE review.review_tasks ADD CONSTRAINT ck_review_tasks_version CHECK (document_version &gt;= 1);
+            ALTER TABLE review.review_tasks ADD CONSTRAINT ck_review_tasks_state
+                CHECK (state IN ('PENDING','APPROVED','REJECTED'));
+            CREATE INDEX idx_review_tasks_state ON review.review_tasks (state, opened_at DESC);
+        </sql>
+        <rollback>
+            <dropTable tableName="review_tasks" schemaName="review"/>
+            <dropTable tableName="review_documents" schemaName="review"/>
+            <dropTable tableName="review_inbox" schemaName="review"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

@@ -1,12 +1,13 @@
 .DEFAULT_GOAL := help
 ENV_FILE ?= .env.local
 
-.PHONY: help verify local-env local-env-test web-structure-test backend-verify backend-unit-test backend-run web-install web-verify infra-check infra-up infra-down infra-status seed-documents
+.PHONY: help verify local-env local-env-test web-structure-test backend-verify backend-unit-test backend-run review-run web-install web-verify infra-check infra-up infra-down infra-status seed-documents
 
 help:
 	@echo "S1-S4: backend-unit-test, backend-verify (Docker required), backend-run"
+	@echo "S8: review-run starts the review context consumer after backing services"
 	@echo "Workspace: web-install, verify, web-verify"
-	@echo "Local PostgreSQL: infra-check, infra-up, infra-status, infra-down"
+	@echo "Local backing services: infra-check, infra-up (PostgreSQL + Kafka), infra-status, infra-down"
 	@echo "S6 exercise: seed-documents adds 10 000 demo documents to the Compose volume"
 	@echo "Local configuration: local-env creates it once; existing configuration is preserved."
 
@@ -30,6 +31,10 @@ backend-unit-test:
 backend-run: infra-up
 	./mvnw --batch-mode --no-transfer-progress -DskipTests package
 	java -jar contribution-service/boot/target/contribution-boot-0.1.0-SNAPSHOT.jar --spring.config.import="file:$(abspath $(ENV_FILE))[.properties]"
+
+review-run: infra-up
+	./mvnw --batch-mode --no-transfer-progress -DskipTests package
+	java -jar review-service/target/review-service-0.1.0-SNAPSHOT.jar --spring.config.import="file:$(abspath $(ENV_FILE))[.properties]"
 
 web-install:
 	npm --prefix web ci
