@@ -1,0 +1,12 @@
+reference;titre;gabarit;section_titre;section_contenu
+ANN-2026-0001;Politique de sauvegarde 2026;policy;Contexte;Les sauvegardes du site principal sont quotidiennes et conservées trente jours.
+ANN-2026-0001;Politique de sauvegarde 2026;policy;Portée;Tous les serveurs de production, sans exception documentée.
+ANN-2026-0002;Plan de reprise 2026;plan;Contexte;Le plan couvre le site principal et son site de secours.
+ANN-2026-0002;Plan de reprise 2026;plan;Cibles;Quatre heures de perte maximale et une heure de reprise.
+ANN-2026-0003;Charte de nommage;standard;Règles;Les identifiants suivent le préfixe de domaine et un numéro séquentiel.
+ANN-2026-0004;Procédure de restauration;runbook;Étapes;Restaurer la dernière sauvegarde, vérifier les journaux, notifier l'astreinte.
+ANN-2026-0005;Inventaire des serveurs;inventory;Périmètre;Les serveurs physiques et virtuels du site principal.
+ANN-2026-0005;Inventaire des serveurs;inventory;Propriétaires;Chaque serveur a un propriétaire identifié dans l'annuaire.
+ANN-2026-0006;Note de cadrage audit;note;Objet;Préparer l'audit annuel avec les preuves de sauvegarde.
+ANN-2026-0007;Registre des incidents;register;Constat;Trois incidents de sauvegarde ont été enregistrés en 2025.
+ANN-2026-0008;Politique de mot de passe;policy;Règles;Douze caractères minimum et renouvellement annuel.

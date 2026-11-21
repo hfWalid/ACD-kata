@@ -1,6 +1,6 @@
 # Architecture
 
-Deux applications, quatre frontières chacune, un broker entre elles. Le cœur reste en Java pur ; HTTP, SQL et Kafka sont des adapters.
+Deux applications, cinq frontières d'entrée pour la première, un broker entre elles. Le cœur reste en Java pur ; HTTP, fichiers, SQL et Kafka sont des adapters.
 
 ## Frontières
 
@@ -18,6 +18,7 @@ flowchart TB
     D["domain<br/>Java pur"]
     P["adapters-persistence<br/>JPA · outbox JDBC"]
     M["adapters-messaging<br/>Kafka"]
+    I["adapters-import<br/>CSV · JSON · Jolt"]
     B["boot<br/>composition · relais"]
   end
 
@@ -32,12 +33,15 @@ flowchart TB
   DLT[["acd.document.lifecycle.v1.DLT"]]
 
   W -->|"JSON /api"| R
+  F["Fichier<br/>.csv / .json"] --> I
+  I --> A
   R --> A
   A --> D
   P -->|"implémente les ports sortants"| A
   B --> R
   B --> P
   B --> M
+  B --> I
   B -->|"relais par lot"| P
   P --> DB
   M --> K
@@ -57,6 +61,7 @@ flowchart TB
 | `adapters-rest` | `document` (contrôleur, DTO), `problem` (erreurs) | `application`, Spring Web |
 | `adapters-persistence` | Entités JPA, outbox JDBC, transactions | `application`, JPA, JDBC, PostgreSQL |
 | `adapters-messaging` | Producteur Kafka, format du contrat | `application`, Spring Kafka |
+| `adapters-import` | Lecteurs CSV/JSON, spécification Jolt, rapport de sortie | `application`, Jackson, Jolt |
 | `boot` | Beans, horloge, ordonnanceur du relais | tous les adapters |
 | `review-service` | Consommateur Kafka, tâches de revue | Spring Boot, Kafka, JDBC |
 
@@ -68,6 +73,9 @@ flowchart TB
 |---|---|---|---|
 | `DocumentCommands` | contribution | entrant | 8 commandes, rendent `DocumentDetail` |
 | `DocumentQueries` | contribution | entrant | `get`, `search`, `version` |
+| `DocumentImport` | contribution | entrant | `importDocuments` : un lot mappé, un rapport par ligne |
+| `ImportSource` | contribution | sortant | `read` : fichier → enregistrements mappés et refus structurels |
+| `DocumentSourceIndex` | contribution | sortant | `find`, `record` : la clé d'idempotence de l'import |
 | `DocumentRepository` | contribution | sortant | `findById`, `add`, `save`, `search`, `exists`, `version` |
 | `EventOutbox` | contribution | sortant | `append`, `claimDue`, `markPublished`, `markFailed`, `countPending`, `countFailed`, `purgePublishedBefore` |
 | `EventPublisher` | contribution | sortant | `publish` |
@@ -82,7 +90,7 @@ Tous les ports rendent des modèles applicatifs, jamais l'agrégat ([ADR 0003](.
 |---|---|
 | Framework ou dépendance non-JDK dans `domain` | ArchUnit + Enforcer, avec fixtures en contre-exemple |
 | `application` indépendante de `boot` | ArchUnit |
-| Aucun adapter ne dépend d'un autre adapter | ArchUnit, y compris `messaging` |
+| Aucun adapter ne dépend d'un autre adapter | ArchUnit, y compris `messaging` et `importing` |
 | Adapter → port, jamais → service concret | ArchUnit |
 | Agrégat interdit dans l'adapter REST | ArchUnit |
 | Implémentation de port hors `application`/adapters | ArchUnit |
@@ -93,20 +101,24 @@ Tous les ports rendent des modèles applicatifs, jamais l'agrégat ([ADR 0003](.
 | Deux relais ne publient jamais le même événement | `twoRelaysNeverPublishTheSameEventTwice` |
 | Retard et échecs observables | jauges `acd.outbox.pending` / `acd.outbox.failed`, vérifiées dans `OutboxPublicationIT` |
 | L'outbox ne grossit pas sans fin | purge après rétention, testée en base |
+| L'import n'invente aucun état | modes vérifiés commande par commande dans `DocumentImportServiceTest` |
+| Rejouer un fichier ne crée rien | `JdbcDocumentSourceIndexIT`, `DocumentImportIT` |
+| L'ordre des versions d'un document est publié | `claimsTheEventsOfOneDocumentInVersionOrderEvenWhenTheyShareATimestamp` |
 
 ## Volume de tests
 
 | Niveau | Tests |
 |---|---|
 | Domaine | 18 |
-| Application | 34 |
-| MVC (`@WebMvcTest`) | 50 |
-| Persistance (Testcontainers) | 26 |
+| Application | 62 |
+| Adaptateur d'import (mapping Jolt, golden files) | 15 |
+| MVC (`@WebMvcTest`) | 55 |
+| Persistance (Testcontainers) | 31 |
 | Messagerie (unitaires, contrat, Kafka réel) | 9 |
 | Architecture (ArchUnit) | 11 |
-| HTTP de bout en bout | 7 |
+| HTTP de bout en bout | 11 |
 | Contexte review | 16 |
-| **Backend** | **171** |
+| **Backend** | **228** |
 | Interface (Vitest) | 40 |
 | Structure de l'interface (Node) | 8 |
 
@@ -132,6 +144,7 @@ flowchart LR
 | Broker local | Kafka 3.9.1 KRaft, un nœud, `127.0.0.1:9092` |
 | Topics | `acd.document.lifecycle.v1`, `...v1.DLT` |
 | Tests d'intégration | Testcontainers (PostgreSQL et Kafka), jamais l'infra Compose |
+| Import en ligne de commande | `make import-documents`, spécifications dans `contracts/import` |
 | Observation | `/actuator/health`, `metrics`, `prometheus` ; jauges `acd.outbox.pending`, `acd.outbox.failed` ; compteurs `published`, `purged` |
 
 ## Pile technique
@@ -145,5 +158,6 @@ flowchart LR
 | Contrat HTTP | springdoc, export vérifié par test | 2.10.0, OpenAPI 3.0.1 |
 | Contrat d'événement | fichier JSON versionné, comparé par test | v1 |
 | Tests back | JUnit 5, AssertJ, ArchUnit, Testcontainers | — |
+| Import | Jackson CSV, Jolt | 2.21.4, 0.1.8 |
 | Front | Angular, Tailwind, AG Grid Community | 21.2.26, 3.4.19, 36.3.0 |
 | Tests front | Vitest, `TestBed`, `HttpTestingController` | 4.1.12 |

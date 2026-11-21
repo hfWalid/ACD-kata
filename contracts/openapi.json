@@ -4,6 +4,10 @@
     "title" : "OpenAPI definition",
     "version" : "v0"
   },
+  "tags" : [ {
+    "name" : "Imports",
+    "description" : "CSV and JSON file import"
+  } ],
   "paths" : {
     "/api/documents/{id}/content" : {
       "put" : {
@@ -75,6 +79,99 @@
               "application/json" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports" : {
+      "post" : {
+        "tags" : [ "Imports" ],
+        "summary" : "Import a CSV or JSON file",
+        "description" : "Maps the file with the spec declared for the source, then runs the existing commands for each record. A record refused by the domain is reported with its code; the other records are still imported.",
+        "operationId" : "importFile",
+        "parameters" : [ {
+          "name" : "X-User",
+          "in" : "header",
+          "description" : "Author identifier for this local kata; not authentication",
+          "required" : true,
+          "schema" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }, {
+          "name" : "X-Approver",
+          "in" : "header",
+          "description" : "Actor recorded on approvals; the author when omitted",
+          "required" : false,
+          "schema" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        }, {
+          "name" : "source",
+          "in" : "query",
+          "description" : "Import source, which selects the mapping under contracts/import",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "mode",
+          "in" : "query",
+          "description" : "DRAFT, SUBMITTED or APPROVED",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "DRAFT"
+          }
+        }, {
+          "name" : "dryRun",
+          "in" : "query",
+          "description" : "Simulate the workflow without writing anything",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean",
+            "default" : false
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "required" : [ "file" ],
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Import report",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ImportReportResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Unknown source, unsupported format or unknown mode",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -979,6 +1076,75 @@
             "type" : "string"
           }
         }
+      },
+      "ImportReportResponse" : {
+        "type" : "object",
+        "properties" : {
+          "source" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "dryRun" : {
+            "type" : "boolean"
+          },
+          "imported" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "planned" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "alreadyImported" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "rejected" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "rows" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ImportRowResponse"
+            }
+          }
+        },
+        "description" : "Import report, one row per file record"
+      },
+      "ImportRowResponse" : {
+        "type" : "object",
+        "properties" : {
+          "line" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "reference" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "documentId" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "documentStatus" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : "string"
+          }
+        },
+        "description" : "Outcome of one file record"
       },
       "CreateDocumentRequest" : {
         "required" : [ "sections", "templateRef", "title" ],

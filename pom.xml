@@ -32,6 +32,7 @@
         <liquibase.version>5.0.4</liquibase.version>
         <springdoc.version>2.10.0</springdoc.version>
         <jacoco.version>0.8.14</jacoco.version>
+        <jolt.version>0.1.8</jolt.version>
     </properties>
 
     <dependencyManagement>
@@ -40,6 +41,11 @@
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>
                 <version>${archunit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.bazaarvoice.jolt</groupId>
+                <artifactId>jolt-core</artifactId>
+                <version>${jolt.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

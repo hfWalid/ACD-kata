@@ -288,3 +288,52 @@ Erreurs corrigées en route :
 - Deux assertions de bail étaient fausses dans le test : passer un bail déjà expiré ne rend pas une ligne due. Le test simule désormais l'expiration en base.
 
 Vérification : `make verify` **exit 0**, **171 tests backend** (18 domaine, 34 application, 50 MVC, 26 persistance, 9 messagerie, 18 boot, 16 review), 40 tests web, 8 tests de structure, Prettier conforme, build réussi. Garde-fou du contrat vérifié par négation : renommer un champ attendu par le consommateur fait échouer le test producteur.
+
+### E1 — Import CSV et JSON, 21 novembre 2026
+
+Extension demandée explicitement avant S9 : lire un fichier, le mapper avec Jolt vers la structure
+documentaire, puis amener chaque document jusqu'au brouillon, à la soumission ou à l'approbation.
+Six briques traitées d'un seul tenant, avec un défaut trouvé en exécutant le parcours réel.
+
+Décisions (ADR 0006) :
+
+- **L'import est une porte d'entrée, pas une capacité.** `APPROVED` = `create`, `submit`,
+  `startReview`, `approve` : quatre commandes réelles, donc quatre entrées d'audit, quatre versions,
+  quatre événements et une tâche de revue ouverte puis décidée. Aucune arête ajoutée à
+  `DocumentTransition`, aucune méthode `importApproved()`.
+- **Le mapping est une donnée versionnée** dans `contracts/import/<source>/` (spec Jolt, échantillon,
+  sortie attendue), comparée par un test. Le CSV est normalisé en JSON avant Jolt, et le
+  regroupement par référence se fait avant lui : Jolt met en forme, il ne regroupe pas.
+- **Idempotence par `(source, référence)`** dans `document_sources`, contrainte unique, écrite dans
+  la transaction du document ; le rejeu rapporte `ALREADY_IMPORTED`.
+- **Un enregistrement = une transaction** (création, référence, transitions) ; le lot n'est pas
+  atomique et le rapport porte la vérité ligne par ligne.
+- **Aucun changement dans les commandes existantes** : l'import ouvre lui-même la transaction, et
+  la transaction de `create` s'y joint.
+
+Livré : module `adapters-import` (lecteurs, regroupement, Jolt, rapport), types et cas d'usage
+`DocumentImport`, `JdbcDocumentSourceIndex` + changeset `004`, `POST /api/imports` et
+`make import-documents`, fixtures de démonstration, ADR 0006, fiche E1, `design/9- import.md` et
+mise à jour de l'architecture, du modèle de données, des cas d'usage, des séquences et des
+événements.
+
+**Défaut trouvé en exécutant, pas en relisant.** Le premier import réel a produit huit documents
+approuvés mais deux tâches de revue. `ORDER BY` dans un `UPDATE … RETURNING` ne trie pas le
+résultat : les quatre événements d'un document partaient dans un ordre arbitraire (`3,4,1,2`), et le
+consommateur ignorait la soumission à cause de son garde de version. Correction : réclamation dans
+une CTE puis tri de sortie par `occurred_at, business_version, id` — la version métier départage
+deux événements du même microseconde, là où l'identifiant tirait au hasard. Test de non-régression
+`claimsTheEventsOfOneDocumentInVersionOrderEvenWhenTheyShareATimestamp`, vérifié rouge avec
+l'ancienne requête puis vert avec la nouvelle.
+
+Autres erreurs corrigées en route : binding d'un `Path` relatif contenant `..` refusé par Spring
+(chemin absolu calculé dans le test) ; quatre tests d'intégration partageant la même base (troncature
+avant chaque test) ; un titre lu sur la première ligne d'un groupe, donc un test qui croyait vérifier
+un refus vérifiait autre chose.
+
+Vérification : `make verify` **exit 0**, **228 tests backend** (18 domaine, 62 application, 15
+import, 55 MVC, 31 persistance, 9 messagerie, 11 ArchUnit, 11 bout en bout HTTP, 16 review), 40
+tests web, 8 tests de structure, Prettier conforme, build réussi. Parcours réel : simulation
+`8 planifiés` sans écriture, import approuvé `8 importés`, huit documents `Approved` avec quatre
+entrées d'audit chacun, **huit tâches `APPROVED`** côté review après démarrage du consommateur,
+rejeu `0 importé / 8 déjà présents`.

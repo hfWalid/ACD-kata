@@ -2,9 +2,9 @@
 
 Projet d'entraînement Java / Angular inspiré de la mission ACD. Le domaine détaillé et l'architecture sont des choix pédagogiques ; ils ne décrivent pas l'architecture interne d'EDF.
 
-**Tranche courante : S1–S8 — domaine, application, PostgreSQL, REST, interface Angular, outbox et Kafka.** Les résultats de vérification sont consignés dans le journal. S9 et les incréments suivants ne sont pas commencés.
+**Tranche courante : S1–S8 — domaine, application, PostgreSQL, REST, interface Angular, outbox et Kafka — plus l'extension E1, l'import de fichiers.** Les résultats de vérification sont consignés dans le journal. S9 et les incréments suivants ne sont pas commencés.
 
-Validation locale : **171 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI et contrat d'événement comparés, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, parcours navigateur sur S5–S7 et parcours Kafka réel sur S8.
+Validation locale : **228 tests backend et 40 tests web réussis, aucun ignoré**, contrat OpenAPI et contrat d'événement comparés, couverture des branches et des lignes du domaine et de l'application à 100 % exigée par le build, frontières vérifiées par ArchUnit et par `scripts/web-structure.test.mjs`, parcours navigateur sur S5–S7, parcours Kafka réel sur S8 et import réel sur E1.
 
 ## Ce qui est construit
 
@@ -20,6 +20,7 @@ Validation locale : **171 tests backend et 40 tests web réussis, aucun ignoré*
 - Outbox transactionnel : un événement par mutation, écrit avec elle, publié par un relais qui réclame des lots (`FOR UPDATE SKIP LOCKED`) et applique un backoff.
 - Contrat d'événement versionné `document.lifecycle.changed` v1, clé par document, publié sur Kafka avec accusé du broker.
 - Contexte review : second service qui consomme ce topic, ouvre une tâche à la soumission, la clôt à la décision, et ignore un rejeu par deux gardes SQL (inbox et version).
+- Import de fichiers (E1) : lecture CSV ou JSON, mapping Jolt versionné dans `contracts/import`, import en brouillon, soumis ou approuvé **par les commandes existantes**, idempotence par référence source, rapport ligne par ligne et mode simulation.
 
 Le domaine n'a aucune dépendance de production externe au JDK. L'application dépend du domaine ; les adapters adaptent les frontières et `boot` assure le câblage. Le contexte review est un service séparé : il possède la tâche, jamais le statut du document.
 
@@ -99,6 +100,27 @@ GET /api/documents?startRow=0&endRow=100&sort=updatedAt:desc&filter.status=InRev
 ```
 
 La réponse contient `rowCount` et `rows`. La fenêtre est exclusive à droite, de 1 à 500 lignes ; un offset arbitraire est accepté. Les tris autorisés sont `title`, `updatedAt`, `status` et `version`. Le total exact et les lignes partagent les mêmes filtres ; la recherche textuelle est littérale et insensible à la casse.
+
+## Importer un fichier
+
+```sh
+make import-documents                                          # scripts/import/annuaire-2026.csv, en brouillon
+make import-documents IMPORT_MODE=approved                     # jusqu'à l'approbation, quatre commandes par document
+make import-documents IMPORT_DRY_RUN=true                      # valide et planifie, n'écrit rien
+make import-documents IMPORT_FILE=/chemin/fichier.json         # une source JSON, la même spécification
+```
+
+La commande imprime un rapport, écrit `target/import-report.json`, attend que l'outbox soit vidée pour que les événements partent réellement, puis rend `0` si tout est passé et `2` dès qu'une ligne est refusée. Un fichier rejoué ne crée rien : chaque ligne revient en `ALREADY_IMPORTED` avec l'identifiant existant.
+
+Le même import existe en HTTP, avec le même rapport :
+
+```sh
+curl --fail-with-body -X POST 'http://127.0.0.1:8081/api/imports?source=annuaire&mode=approved' \
+  -H 'X-User: importateur' -H 'X-Approver: relecteur' \
+  -F 'file=@scripts/import/annuaire-2026.csv'
+```
+
+`APPROVED` ne saute aucune étape : chaque document est créé, soumis, mis en revue puis approuvé, ce qui produit quatre entrées d'audit, quatre versions, quatre événements et une tâche de revue ouverte puis décidée. Les refus du domaine remontent tels quels (`EMPTY_DOCUMENT`, `INVALID_DOCUMENT`, …) ; l'import n'ajoute que des codes structurels (`UNKNOWN_SOURCE`, `MISSING_SOURCE_REF`, `MAPPING_FAILED`, `UNSUPPORTED_FORMAT`, `ROW_LIMIT_EXCEEDED`). Détails dans [la fiche E1](docs/phases/E1-import.md) et le [design](design/9-%20import.md).
 
 ## Essayer l'interface web
 

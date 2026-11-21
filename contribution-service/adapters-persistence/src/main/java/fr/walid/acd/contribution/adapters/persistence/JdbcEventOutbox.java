@@ -34,16 +34,29 @@ public class JdbcEventOutbox implements EventOutbox {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
+    /**
+     * Claims a batch and returns it in the order the events must be published.
+     *
+     * <p>Two details matter. {@code ORDER BY} inside an {@code UPDATE ... RETURNING} does not order
+     * the result, so the claim is wrapped in a CTE and ordered again on the way out; without that,
+     * the four events of one imported document came back as 3,4,1,2 and the review service ignored
+     * the submission. The order is by timestamp, then by document version, because several
+     * commands of one document can share a microsecond: without the version, a tie would be broken
+     * by a random identifier.
+     */
     private static final String CLAIM = """
-            UPDATE outbox_events SET next_attempt_at = ?
-            WHERE id IN (SELECT id FROM outbox_events
-                         WHERE published_at IS NULL
-                           AND (next_attempt_at IS NULL OR next_attempt_at <= now())
-                         ORDER BY occurred_at, id
-                         LIMIT ?
-                         FOR UPDATE SKIP LOCKED)
-            RETURNING id, event_type, schema_version, document_id, business_version, action, status,
-                      title, actor, occurred_at, attempts
+            WITH claimed AS (
+                UPDATE outbox_events SET next_attempt_at = ?
+                WHERE id IN (SELECT id FROM outbox_events
+                             WHERE published_at IS NULL
+                               AND (next_attempt_at IS NULL OR next_attempt_at <= now())
+                             ORDER BY occurred_at, business_version, id
+                             LIMIT ?
+                             FOR UPDATE SKIP LOCKED)
+                RETURNING id, event_type, schema_version, document_id, business_version, action, status,
+                          title, actor, occurred_at, attempts
+            )
+            SELECT * FROM claimed ORDER BY occurred_at, business_version, id
             """;
 
     private static final String MARK_PUBLISHED =

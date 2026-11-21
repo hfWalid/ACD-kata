@@ -12,7 +12,7 @@
 
 - `domain` : Java pur, règles et langage métier. Aucune dépendance externe de production, annotation Spring/JPA/Jackson ou opération d'I/O.
 - `application` : orchestration des cas d'usage et ports nécessaires. Dépend du domaine et du JDK, sans framework.
-- `adapters-rest`, `adapters-persistence`, `adapters-messaging` : adaptations de leurs frontières respectives. Les détails techniques ne remontent pas vers le cœur.
+- `adapters-rest`, `adapters-persistence`, `adapters-messaging`, `adapters-import` : adaptations de leurs frontières respectives. Les détails techniques ne remontent pas vers le cœur.
 - `boot` : composition et démarrage. Depuis S4, serveur REST local, PostgreSQL et observabilité ; le bootstrap S0 non-web est historique.
 - `web` : Angular strict, standalone et zoneless. Ne pas anticiper la grille ou les formulaires.
 

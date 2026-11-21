@@ -5,6 +5,7 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
+import fr.walid.acd.architecturefixtures.adapters.importing.BadImport;
 import fr.walid.acd.architecturefixtures.adapters.messaging.BadMessaging;
 import fr.walid.acd.architecturefixtures.adapters.persistence.BadBootDependency;
 import fr.walid.acd.architecturefixtures.adapters.persistence.BadPersistence;
@@ -43,6 +44,7 @@ class ArchitectureSmokeTest {
         independentRestAdapter(ROOT + ".adapters").check(production);
         independentPersistenceAdapter(ROOT + ".adapters").check(production);
         independentMessagingAdapter(ROOT + ".adapters").check(production);
+        independentImportAdapter(ROOT + ".adapters").check(production);
         adaptersDependOnPortsOnly(ROOT + ".adapters").check(production);
         adaptersStayOutsideTheCompositionRoot(ROOT + ".adapters").check(production);
         restAdapterDoesNotExposeTheAggregate(ROOT + ".adapters").check(production);
@@ -71,6 +73,7 @@ class ArchitectureSmokeTest {
         rejects(independentRestAdapter(FIXTURES + ".adapters"), BadRest.class);
         rejects(independentPersistenceAdapter(FIXTURES + ".adapters"), BadPersistence.class);
         rejects(independentMessagingAdapter(FIXTURES + ".adapters"), BadMessaging.class);
+        rejects(independentImportAdapter(FIXTURES + ".adapters"), BadImport.class);
     }
 
     @Test
@@ -121,19 +124,27 @@ class ArchitectureSmokeTest {
 
     private static ArchRule independentRestAdapter(String adaptersPackage) {
         return noClasses().that().resideInAPackage(adaptersPackage + ".rest..")
-                .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".persistence..", adaptersPackage + ".messaging..");
+                .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".persistence..",
+                        adaptersPackage + ".messaging..", adaptersPackage + ".importing..");
     }
 
     private static ArchRule independentPersistenceAdapter(String adaptersPackage) {
         return noClasses().that().resideInAPackage(adaptersPackage + ".persistence..")
-                .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".rest..", adaptersPackage + ".messaging..");
+                .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".rest..",
+                        adaptersPackage + ".messaging..", adaptersPackage + ".importing..");
     }
 
     private static ArchRule independentMessagingAdapter(String adaptersPackage) {
-        // The messaging adapter remains intentionally empty until S8.
         return noClasses().that().resideInAPackage(adaptersPackage + ".messaging..")
-                .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".rest..", adaptersPackage + ".persistence..")
-                .allowEmptyShould(true);
+                .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".rest..",
+                        adaptersPackage + ".persistence..", adaptersPackage + ".importing..");
+    }
+
+    /** File reading and mapping talk to the application through its ports, like every other adapter. */
+    private static ArchRule independentImportAdapter(String adaptersPackage) {
+        return noClasses().that().resideInAPackage(adaptersPackage + ".importing..")
+                .should().dependOnClassesThat().resideInAnyPackage(adaptersPackage + ".rest..",
+                        adaptersPackage + ".persistence..", adaptersPackage + ".messaging..");
     }
 
     /** Adapters talk to the application through inbound ports, never through the services behind them. */

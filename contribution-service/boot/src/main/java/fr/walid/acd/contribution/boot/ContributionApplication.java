@@ -9,6 +9,10 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 public class ContributionApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(ContributionApplication.class, args);
+        var context = SpringApplication.run(ContributionApplication.class, args);
+        // A command line import must end the process with its report code; a web run keeps serving.
+        if (context.getBeanProvider(ImportRunner.class).getIfAvailable() != null) {
+            System.exit(SpringApplication.exit(context));
+        }
     }
 }

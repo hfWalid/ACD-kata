@@ -54,6 +54,23 @@ Ajouter un champ, en renommer un ou en retirer un change la version et le topic.
 
 **Ce qui n'est pas garanti** : exactly-once de bout en bout. Un événement peut être publié deux fois ; c'est le consommateur qui rend la répétition inoffensive.
 
+## Ordre des versions
+
+Un document importé écrit quatre événements dans la même transaction : ils peuvent porter le même
+microseconde. L'ordre de publication reste pourtant celui des versions, et c'est une propriété du
+relais, pas une espérance :
+
+| Piège | Correction |
+|---|---|
+| `ORDER BY` dans un `UPDATE … RETURNING` ne trie pas le résultat | le lot est réclamé dans une CTE puis trié en sortie |
+| deux événements du même document au même instant | tri par `occurred_at`, puis `business_version`, puis `id` |
+
+Sans cela, un import de huit documents approuvés produisait deux tâches de revue au lieu de huit :
+le consommateur recevait la version 4 avant la version 2 et ignorait la soumission par son garde de
+version. Le test qui l'empêche est
+`claimsTheEventsOfOneDocumentInVersionOrderEvenWhenTheyShareATimestamp` ; il échoue avec l'ancienne
+requête.
+
 ## Contrat piloté par le consommateur
 
 Le consommateur publie ses attentes dans [`contracts/events/expectations/`](../contracts/events/expectations) : un fichier par comportement, avec la charge utile attendue et l'effet attendu (`OPEN_TASK`, `DECIDE`, `IGNORE`, `REJECT`).

@@ -1,0 +1,22 @@
+[
+  {
+    "operation": "shift",
+    "spec": {
+      "reference": "sourceRef",
+      "titre": "title",
+      "gabarit": "templateRef",
+      "sections": {
+        "*": {
+          "titre": "sections[&1].title",
+          "contenu": "sections[&1].content"
+        }
+      }
+    }
+  },
+  {
+    "operation": "default",
+    "spec": {
+      "templateRef": "report"
+    }
+  }
+]

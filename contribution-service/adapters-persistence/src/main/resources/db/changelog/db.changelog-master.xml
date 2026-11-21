@@ -5,4 +5,5 @@
     <include file="changes/001-create-document-aggregate.xml" relativeToChangelogFile="true"/>
     <include file="changes/002-store-document-versions.xml" relativeToChangelogFile="true"/>
     <include file="changes/003-add-outbox.xml" relativeToChangelogFile="true"/>
+    <include file="changes/004-add-document-sources.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

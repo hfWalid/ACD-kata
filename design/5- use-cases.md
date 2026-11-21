@@ -8,6 +8,7 @@ flowchart LR
   R(("Relecteur"))
   P(("Publication"))
   V(("Consultation"))
+  I(("Import"))
 
   subgraph System["API contribution"]
     UC1["Créer un brouillon"]
@@ -21,6 +22,7 @@ flowchart LR
     UC9["Lister et rechercher"]
     UC10["Consulter un document"]
     UC11["Consulter une version enregistrée"]
+    UC12["Importer un fichier<br/>draft, submitted ou approved"]
   end
 
   C --> UC1
@@ -34,6 +36,9 @@ flowchart LR
   V --> UC9
   V --> UC10
   V --> UC11
+  I --> UC12
+  UC12 -.->|"aucun état inventé"| UC1
+  UC12 -.->|"approuver = traverser"| UC3
   UC3 -.->|"si Rejected"| UC2
   UC10 -.->|"depuis le journal d'audit"| UC11
 ```

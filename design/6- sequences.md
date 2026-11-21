@@ -1,6 +1,6 @@
 # Séquences
 
-Neuf parcours qui expliquent le comportement réel.
+Dix parcours qui expliquent le comportement réel.
 
 ## 1. Créer un brouillon depuis l'interface
 
@@ -257,7 +257,43 @@ sequenceDiagram
   Note over S: un événement non publié<br/>n'est jamais supprimé
 ```
 
-## 9. Traduire une erreur en problème HTTP
+## 9. Importer un fichier
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Importateur
+  participant CLI as make import-documents
+  participant S as JoltImportSource
+  participant M as Jolt
+  participant I as DocumentImport
+  participant C as DocumentCommands
+  participant DB as PostgreSQL
+  participant R as Relais
+
+  U->>CLI: import-documents MODE=approved
+  CLI->>S: read(source, fichier)
+  S->>S: CSV → JSON → regroupement
+  S->>M: spec Jolt
+  M-->>S: document mappé
+  S-->>CLI: lot (enregistrements + refus structurels)
+  CLI->>I: importDocuments(lot, options)
+  loop chaque ligne du fichier
+    I->>DB: référence déjà importée ?
+    alt déjà présente
+      I-->>CLI: ALREADY_IMPORTED
+    else nouvelle
+      I->>C: create, submit, startReview, approve
+      C->>DB: document + audit + versions + outbox + référence (une transaction)
+      I-->>CLI: IMPORTED v4 Approved
+    end
+  end
+  CLI->>R: attendre le drain de l'outbox
+  R-->>CLI: pending = 0
+  CLI->>U: rapport + code de sortie 0 ou 2
+```
+
+## 10. Traduire une erreur en problème HTTP
 
 ```mermaid
 sequenceDiagram

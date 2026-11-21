@@ -1,6 +1,6 @@
 # Design — ACD Kata (S0 → S8)
 
-Vue courte de ce qui est construit en S0–S8 : frontières, domaine, données, cas d'usage, séquences, événements, interface.
+Vue courte de ce qui est construit en S0–S8 et de l'extension E1 : frontières, domaine, données, cas d'usage, séquences, événements, import, interface.
 
 | Fichier | Contenu |
 |---|---|
@@ -8,11 +8,12 @@ Vue courte de ce qui est construit en S0–S8 : frontières, domaine, données, 
 | [domain.md](3-%20domain.md) | Agrégat, machine à états, invariants |
 | [data-model.md](4-%20data-model.md) | Tables, contraintes, concurrence, outbox, schéma review |
 | [events.md](8-%20events.md) | Contrat, garanties, déduplication, métriques, rétention, pannes |
+| [import.md](9-%20import.md) | Chaîne CSV/JSON → Jolt → commandes, modes, idempotence, rapport |
 | [use-cases.md](5-%20use-cases.md) | Acteurs, cas d'usage, droits, contexte review |
 | [sequences.md](6-%20sequences.md) | Création, transition, conflit, grille, versions, relais, consommation, purge, erreurs |
 | [web.md](7-%20web.md) | Routes, composants, états, grille |
 
-Périmètre : backend hexagonal (S1–S4), interface Angular (S5–S7), outbox, Kafka et contexte review (S8).
+Périmètre : backend hexagonal (S1–S4), interface Angular (S5–S7), outbox, Kafka et contexte review (S8), import de fichiers (E1).
 
 Deux règles de lecture :
 
@@ -23,6 +24,7 @@ Deux règles de lecture :
 flowchart LR
   U["Utilisateur"] --> W["Angular<br/>S5–S7"]
   W -->|"JSON /api"| C["contribution-service<br/>S1–S4 · outbox S8"]
+  I["Import CSV/JSON<br/>E1"] -->|"commandes"| C
   C --> DB[("PostgreSQL")]
   C --> K[["Kafka<br/>lifecycle v1"]]
   K --> R["review-service<br/>S8"]

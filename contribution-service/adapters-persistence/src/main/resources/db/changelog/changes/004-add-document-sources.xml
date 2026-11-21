@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="004-add-document-sources" author="walid">
+        <comment>
+            Where an imported document comes from. The (source_name, source_reference) pair is the
+            idempotence key of the import: replaying a file reports the record as already imported
+            instead of creating a second document. The row is written in the same transaction that
+            creates the document, so a crash never leaves an untracked document behind.
+        </comment>
+        <createTable tableName="document_sources">
+            <column name="document_id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="source_name" type="varchar(100)"><constraints nullable="false"/></column>
+            <column name="source_reference" type="varchar(200)"><constraints nullable="false"/></column>
+            <column name="recorded_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="document_sources" baseColumnNames="document_id"
+                                 constraintName="fk_document_sources_document"
+                                 referencedTableName="documents" referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="document_sources" columnNames="source_name,source_reference"
+                             constraintName="uk_document_sources_reference"/>
+        <createIndex tableName="document_sources" indexName="idx_document_sources_reference">
+            <column name="source_reference"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

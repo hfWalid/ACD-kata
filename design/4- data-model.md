@@ -1,12 +1,13 @@
 # Modèle de données
 
-Neuf tables : six pour le document et son outbox, trois pour le contexte review. Les schémas sont créés par Liquibase ; Hibernate valide seulement.
+Dix tables : sept pour le document, son outbox et son origine, trois pour le contexte review. Les schémas sont créés par Liquibase ; Hibernate valide seulement.
 
 ```mermaid
 erDiagram
   documents ||--o{ document_sections : "ordonne"
   documents ||--o{ document_audit : "trace"
   documents ||--o{ document_versions : "instantané"
+  documents ||--|| document_sources : "provient de"
   document_versions ||--o{ document_version_sections : "fige"
 
   documents {
@@ -53,6 +54,13 @@ erDiagram
     text content
   }
 
+  document_sources {
+    uuid document_id PK
+    varchar source_name
+    varchar source_reference
+    timestamptz recorded_at
+  }
+
   outbox_events {
     uuid id PK
     varchar event_type
@@ -73,6 +81,12 @@ erDiagram
 
 `outbox_events` n'a pas de clé étrangère vers `documents` : un événement publié doit survivre à la suppression du document qu'il décrit.
 
+`document_sources` en a une, en cascade : la trace d'origine disparaît avec le document, et une
+référence redevient importable après suppression. La contrainte unique porte sur
+`(source_name, source_reference)` : deux provenances peuvent employer la même référence, une même
+provenance ne le peut pas. C'est la clé d'idempotence de l'import, et c'est la base qui arbitre
+entre deux imports concurrents.
+
 ## Trois lectures d'un même document
 
 | Table | Répond à | Écrit quand |
@@ -81,6 +95,7 @@ erDiagram
 | `document_audit` | qui a fait quoi et quand | à chaque action, dans l'agrégat |
 | `document_versions` + `document_version_sections` | ce à quoi ressemblait le document une fois l'action réussie | à chaque action, par la persistance |
 | `outbox_events` | quel événement doit partir au broker | à chaque action, dans la même transaction |
+| `document_sources` | d'où vient un document importé | à l'import, dans la même transaction que la création |
 
 L'audit est du domaine ; l'instantané est une projection de persistance, ce qui dispense de rejouer l'historique pour lire une version.
 

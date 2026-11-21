@@ -107,6 +107,34 @@ class JdbcEventOutboxIT {
     }
 
     @Test
+    void claimsTheEventsOfOneDocumentInVersionOrderEvenWhenTheyShareATimestamp() {
+        // One import writes create, submit, review and approve in a single transaction, so the four
+        // events can carry the same microsecond. They must still reach the broker in version order,
+        // otherwise the consumer sees version 4 before version 2 and drops the submission.
+        var document = draft();
+        documents.add(document);
+        var edited = document.updateContent("Document", List.of(new Section("Résumé", "Contenu")), AUTHOR, CREATED_AT);
+        var submitted = edited.submit(AUTHOR, CREATED_AT);
+        var inReview = submitted.startReview(AUTHOR, CREATED_AT);
+        var approved = inReview.approve(AUTHOR, CREATED_AT);
+        var events = List.of(
+                DocumentLifecycleEvent.of(document, UUID.randomUUID()),
+                DocumentLifecycleEvent.of(edited, UUID.randomUUID()),
+                DocumentLifecycleEvent.of(submitted, UUID.randomUUID()),
+                DocumentLifecycleEvent.of(inReview, UUID.randomUUID()),
+                DocumentLifecycleEvent.of(approved, UUID.randomUUID()));
+        transactions.inTransaction(() -> {
+            outbox.append(events);
+            return null;
+        });
+
+        var claimed = outbox.claimDue(10, Instant.now().plus(LEASE));
+
+        assertThat(claimed).extracting(entry -> entry.event().documentVersion())
+                .containsExactly(1L, 2L, 3L, 4L, 5L);
+    }
+
+    @Test
     void refusesTwoEventsForTheSameDocumentVersion() {
         var draft = draft();
         documents.add(draft);

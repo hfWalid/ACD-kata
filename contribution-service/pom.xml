@@ -17,6 +17,7 @@
         <module>adapters-rest</module>
         <module>adapters-persistence</module>
         <module>adapters-messaging</module>
+        <module>adapters-import</module>
         <module>boot</module>
     </modules>
 </project>

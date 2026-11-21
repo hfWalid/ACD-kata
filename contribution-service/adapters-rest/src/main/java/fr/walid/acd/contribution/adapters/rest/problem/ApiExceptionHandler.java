@@ -1,9 +1,9 @@
 package fr.walid.acd.contribution.adapters.rest.problem;
 
-import fr.walid.acd.contribution.adapters.rest.document.DocumentController;
 import fr.walid.acd.contribution.application.exception.DocumentConflictException;
 import fr.walid.acd.contribution.application.exception.DocumentNotFoundException;
 import fr.walid.acd.contribution.application.exception.DocumentVersionNotFoundException;
+import fr.walid.acd.contribution.application.exception.ImportBatchRejectedException;
 import fr.walid.acd.contribution.domain.DomainException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-@RestControllerAdvice(basePackageClasses = DocumentController.class)
+@RestControllerAdvice(basePackages = "fr.walid.acd.contribution.adapters.rest")
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -98,6 +98,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ResponseEntity<Object> versionNotFound(DocumentVersionNotFoundException exception, WebRequest request) {
         return problem(HttpStatus.NOT_FOUND, "DOCUMENT_VERSION_NOT_FOUND",
                 "No values are stored for this document version", request);
+    }
+
+    @ExceptionHandler(ImportBatchRejectedException.class)
+    ResponseEntity<Object> rejectedImport(ImportBatchRejectedException exception, WebRequest request) {
+        return problem(HttpStatus.BAD_REQUEST, exception.code(), exception.getMessage(), request);
     }
 
     @ExceptionHandler(DocumentConflictException.class)

@@ -1,6 +1,6 @@
 # Progression par phases
 
-La progression dépend des comportements démontrés, pas des dates du programme d'origine. **S0–S8 sont implémentés et validés localement.** Les résultats de vérification figurent dans le journal : 171 tests backend, 40 tests web, 8 tests de structure, un parcours navigateur pour S5–S7 et un parcours Kafka réel pour S8. S9 et les phases suivantes attendent une nouvelle demande.
+La progression dépend des comportements démontrés, pas des dates du programme d'origine. **S0–S8 sont implémentés et validés localement.** Les résultats de vérification figurent dans le journal : 228 tests backend, 40 tests web, 8 tests de structure, un parcours navigateur pour S5–S7 et un parcours Kafka réel pour S8. S9 et les phases suivantes attendent une nouvelle demande.
 
 Les références de préparation et leurs limites sont dans [preparation/](preparation/reading-notes.md). Les décisions locales font autorité pour ce kata ; elles ne prétendent pas définir le produit EDF.
 
@@ -15,12 +15,16 @@ Les références de préparation et leurs limites sont dans [preparation/](prepa
 | [S6 — Grille](phases/S6-grid.md) | AG Grid et exercice de tri / filtre / pagination serveur | Contrat de requête et chargement par blocs démontrés ; licence et choix du row model explicités |
 | [S7 — Contribution](phases/S7-contribution.md) | Formulaire réactif, Tailwind 3 et actions selon le statut | Validations, erreurs et accessibilité du parcours vérifiées |
 | [S8 — Événements](phases/S8-events.md) | Outbox transactionnel, Kafka, contexte review et déduplication | Rejeu sans effet dupliqué ; responsabilités et contrats versionnés |
+| [E1 — Import](phases/E1-import.md) | Lecture CSV/JSON, mapping Jolt versionné et import en brouillon, soumis ou approuvé par les commandes existantes | Rejeu sans doublon ; workflow traversé et non contourné ; rapport par ligne |
 | S9 — Parcours e2e, optionnel | Cypress sur parcours de contribution et décision | Parcours métier indépendants, répétables et lisibles |
 | S10 — Qualité, optionnel | SonarQube, couverture et contrôles de dépendances / sécurité | Résultats observés et limites des outils documentés |
 | S11 — Livraison, optionnel | Packaging Docker et pipeline GitLab complet | Pipeline réellement exécutée ; aucun déploiement implicite |
 | S12 — Infrastructure, optionnel | Terraform et observabilité cloud en laboratoire autorisé | Plan et métriques vérifiés dans un environnement explicitement choisi |
 
 ## Séquence
+
+L'extension **E1** s'insère avant S9 sans renuméroter les phases : elle ajoute une porte d'entrée
+(fichier) aux deux existantes (HTTP, interface), pas un nouvel état du document.
 
 La tranche **S0 → S8** est complète : le domaine, l'application, PostgreSQL, l'API, l'interface web, l'outbox, Kafka et le contexte review sont vérifiés localement. Les phases S9 et suivantes enrichissent cette tranche ; elles ne sont ni commencées ni requises pour la valider.
 
